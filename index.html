@@ -18,12 +18,14 @@
   --pill-ink:#2a2725;
   --radius:14px;
   --shadow:0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  --lift:0 10px 26px rgba(0,0,0,.18);
 }
 :root[data-theme="dark"]{
   --bg:#16151a; --surface:#201f26; --line:#302e38;
   --ink:#f2f0ee; --ink-soft:#8d8899; --ink-faint:#4a4756;
   --pill-ink:#1a1820;
   --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 20px rgba(0,0,0,.25);
+  --lift:0 12px 32px rgba(0,0,0,.55);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
@@ -38,11 +40,8 @@ button{background:none;border:0;padding:0;cursor:pointer}
 input{background:none;border:0;outline:0}
 .hide{display:none !important}
 
-/* ---------- LOGIN ---------- */
-#login{
-  position:fixed;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:14px;padding:32px;
-}
+/* LOGIN */
+#login{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px}
 #login .mark{display:flex;gap:7px;margin-bottom:10px}
 #login .mark i{width:16px;height:16px;border-radius:50%;display:block;animation:bob 2.4s ease-in-out infinite}
 #login .mark i:nth-child(2){animation-delay:.2s}
@@ -51,179 +50,133 @@ input{background:none;border:0;outline:0}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 #login h1{font-size:26px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}
 #login p{margin:0 0 14px;color:var(--ink-soft);font-size:15px}
-.field{
-  width:100%;max-width:300px;background:var(--surface);
-  border:1px solid var(--line);border-radius:var(--radius);
-  padding:14px 16px;font-size:16px;
-}
+.field{width:100%;max-width:300px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;font-size:16px}
 .field:focus{border-color:var(--ink-faint)}
-#loginBtn{
-  width:100%;max-width:300px;background:var(--ink);color:var(--bg);
-  border-radius:var(--radius);padding:15px;font-weight:600;font-size:16px;
-  transition:opacity .15s;
-}
+#loginBtn{width:100%;max-width:300px;background:var(--ink);color:var(--bg);border-radius:var(--radius);padding:15px;font-weight:600;font-size:16px;transition:opacity .15s}
 #loginBtn:active{opacity:.6}
 #loginBtn:disabled{opacity:.4}
 #loginErr{color:#e0554e;font-size:14px;min-height:20px;text-align:center;margin:0}
 
-/* ---------- APP SHELL ---------- */
+/* SHELL */
 #app{display:flex;flex-direction:column;height:100%;height:100dvh}
-
-header{
-  padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;
-  display:flex;align-items:center;gap:12px;flex-shrink:0;
-}
-#listName{
-  font-size:27px;font-weight:700;letter-spacing:-.03em;
-  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  display:flex;align-items:center;gap:8px;
-}
+header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+#listName{font-size:27px;font-weight:700;letter-spacing:-.03em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:8px}
 #listName .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
-.iconbtn{
-  width:38px;height:38px;border-radius:50%;
-  display:grid;place-items:center;flex-shrink:0;
-  color:var(--ink-soft);border:1px solid var(--line);
-  transition:background .15s;
-}
+.iconbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;color:var(--ink-soft);border:1px solid var(--line);transition:background .15s}
 .iconbtn:active{background:var(--line)}
 .iconbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
-/* list tabs */
-#tabs{
-  display:flex;gap:8px;padding:4px 18px 12px;overflow-x:auto;flex-shrink:0;
-  scrollbar-width:none;
-}
+#tabs{display:flex;gap:8px;padding:4px 18px 12px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
 #tabs::-webkit-scrollbar{display:none}
-.tab{
-  padding:7px 15px;border-radius:100px;white-space:nowrap;font-size:14px;font-weight:600;
-  border:1.5px solid var(--line);color:var(--ink-soft);flex-shrink:0;
-  transition:all .18s ease;
-}
+.tab{padding:7px 15px;border-radius:100px;white-space:nowrap;font-size:14px;font-weight:600;border:1.5px solid var(--line);color:var(--ink-soft);flex-shrink:0;transition:all .18s ease}
 .tab.on{color:var(--pill-ink);border-color:transparent}
 .tab.add{color:var(--ink-faint);padding:7px 13px}
 
-/* toolbar */
-#bar{
-  display:flex;align-items:center;gap:6px;padding:0 18px 10px;flex-shrink:0;
-  font-size:13px;color:var(--ink-soft);
-}
+#bar{display:flex;align-items:center;gap:6px;padding:0 18px 10px;flex-shrink:0;font-size:13px;color:var(--ink-soft)}
 #bar .seg{display:flex;background:var(--line);border-radius:100px;padding:2px}
-#bar .seg button{
-  padding:5px 12px;border-radius:100px;font-size:12.5px;font-weight:600;
-  color:var(--ink-soft);transition:all .18s;
-}
+#bar .seg button{padding:5px 11px;border-radius:100px;font-size:12.5px;font-weight:600;color:var(--ink-soft);transition:all .18s;white-space:nowrap}
 #bar .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-#bar .count{margin-left:auto;font-variant-numeric:tabular-nums}
+#bar .count{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
 
-/* ---------- ITEMS ---------- */
-#items{
-  flex:1;overflow-y:auto;padding:4px 18px 12px;
-  display:flex;flex-wrap:wrap;gap:9px;align-content:flex-start;
-  -webkit-overflow-scrolling:touch;
-}
-.pill{
-  padding:11px 17px;border-radius:100px;font-size:16px;font-weight:600;
+/* ITEMS */
+#items{flex:1;overflow-y:auto;padding:2px 18px 12px;-webkit-overflow-scrolling:touch;position:relative}
+.row{
+  display:flex;align-items:center;gap:2px;
+  border-radius:100px;margin-bottom:8px;
+  padding:5px 6px 5px 16px;
   color:var(--pill-ink);
-  display:flex;align-items:center;gap:8px;
-  transition:transform .28s cubic-bezier(.3,1.4,.5,1), filter .28s ease, opacity .28s ease;
-  animation:pop .3s cubic-bezier(.3,1.5,.5,1);
-  user-select:none;
+  animation:pop .26s cubic-bezier(.3,1.5,.5,1);
+  transition:filter .3s ease, opacity .3s ease, transform .22s cubic-bezier(.2,.9,.3,1), box-shadow .2s ease;
+  user-select:none;-webkit-user-select:none;
+  will-change:transform;
 }
-@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
-.pill:active{transform:scale(.93)}
-/* the signature: done items desaturate + shrink instead of strikethrough */
-.pill.done{
-  filter:saturate(.12) opacity(.55);
-  transform:scale(.88);
-  font-weight:500;
-}
-.pill.done:active{transform:scale(.83)}
-.pill .x{
-  opacity:.35;font-size:19px;line-height:1;margin:-2px -4px -2px 0;
-  padding:2px 4px;
-}
-#empty{
-  width:100%;text-align:center;color:var(--ink-faint);
-  padding:56px 20px;font-size:15px;line-height:1.6;
-}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
 
-/* ---------- INPUT ---------- */
-#composer{
-  flex-shrink:0;position:relative;
-  padding:10px 18px calc(env(safe-area-inset-bottom) + 12px);
-  border-top:1px solid var(--line);background:var(--surface);
+/* die signatur: erledigt = entsättigt + geschrumpft, kein durchstreichen */
+.row.done{filter:saturate(.1) opacity(.5);transform:scale(.955)}
+.row.done .name{font-weight:500}
+
+/* drag */
+.row.lift{
+  box-shadow:var(--lift);
+  filter:none !important;opacity:1 !important;
+  z-index:20;position:relative;
+  transition:box-shadow .2s ease;
 }
-#suggest{
-  position:absolute;bottom:100%;left:18px;right:18px;
-  display:flex;flex-wrap:wrap;gap:7px;
-  padding:0 0 10px;
+.row.shift{transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+
+.name{flex:1;min-width:0;font-size:16.5px;font-weight:600;padding:9px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Menge */
+.qty{display:flex;align-items:center;flex-shrink:0}
+.qty button{
+  width:36px;height:36px;border-radius:50%;
+  display:grid;place-items:center;
+  font-size:20px;font-weight:700;line-height:1;
+  color:var(--pill-ink);opacity:.55;
+  background:rgba(255,255,255,.35);
+  transition:opacity .15s, transform .12s, background .15s;
 }
-#suggest button{
-  padding:8px 14px;border-radius:100px;font-size:14.5px;font-weight:600;
-  background:var(--bg);border:1.5px solid var(--line);color:var(--ink);
-  box-shadow:var(--shadow);
-  animation:pop .2s ease;
+.qty button:active{transform:scale(.85);background:rgba(0,0,0,.08);opacity:.75}
+.qty .num{
+  min-width:22px;text-align:center;
+  font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;
+  opacity:.7;
 }
+.qty .minus.off,.qty .num.off{display:none}
+
+.grip{
+  width:32px;height:38px;flex-shrink:0;
+  display:grid;place-items:center;
+  opacity:.3;
+  touch-action:none;cursor:grab;
+}
+.grip.off{display:none}
+.grip:active{cursor:grabbing;opacity:.6}
+.grip svg{width:15px;height:15px;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;fill:none}
+
+#empty{text-align:center;color:var(--ink-faint);padding:56px 20px;font-size:15px;line-height:1.6}
+
+/* COMPOSER */
+#composer{flex-shrink:0;position:relative;padding:10px 18px calc(env(safe-area-inset-bottom) + 12px);border-top:1px solid var(--line);background:var(--surface)}
+#suggest{position:absolute;bottom:100%;left:18px;right:18px;display:flex;flex-wrap:wrap;gap:7px;padding:0 0 10px}
+#suggest button{padding:8px 14px;border-radius:100px;font-size:14.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);color:var(--ink);box-shadow:var(--shadow);animation:pop .2s ease}
 #suggest button:active{transform:scale(.94)}
-#composer .row{display:flex;align-items:center;gap:10px}
-#entry{
-  flex:1;background:var(--bg);border:1.5px solid var(--line);
-  border-radius:100px;padding:13px 18px;font-size:16px;min-width:0;
+#suggest button em{font-style:normal;font-weight:800;opacity:.45}
+#suggest button b{
+  font-weight:800;font-size:12.5px;
+  margin-left:3px;padding:2px 6px;border-radius:100px;
+  background:var(--line);color:var(--ink-soft);
+  vertical-align:1px;
 }
+#composer .bottom{display:flex;align-items:center;gap:10px}
+#entry{flex:1;background:var(--bg);border:1.5px solid var(--line);border-radius:100px;padding:13px 18px;font-size:16px;min-width:0}
 #entry:focus{border-color:var(--ink-faint)}
-#addBtn{
-  width:46px;height:46px;border-radius:50%;flex-shrink:0;
-  display:grid;place-items:center;color:var(--pill-ink);
-  transition:transform .15s;
-}
+#addBtn{width:46px;height:46px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;color:var(--pill-ink);transition:transform .15s}
 #addBtn:active{transform:scale(.9)}
 #addBtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
 
-/* ---------- SHEET ---------- */
-#sheet{
-  position:fixed;inset:0;z-index:50;
-  background:rgba(0,0,0,.35);backdrop-filter:blur(3px);
-  display:flex;align-items:flex-end;
-  animation:fade .2s ease;
-}
+/* SHEET */
+#sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.35);backdrop-filter:blur(3px);display:flex;align-items:flex-end;animation:fade .2s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-#sheet .panel{
-  width:100%;background:var(--surface);
-  border-radius:22px 22px 0 0;
-  padding:22px 20px calc(env(safe-area-inset-bottom) + 22px);
-  animation:up .28s cubic-bezier(.2,.9,.3,1);
-}
+#sheet .panel{width:100%;background:var(--surface);border-radius:22px 22px 0 0;padding:22px 20px calc(env(safe-area-inset-bottom) + 22px);animation:up .28s cubic-bezier(.2,.9,.3,1)}
 @keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
 #sheet h2{margin:0 0 16px;font-size:19px;font-weight:700;letter-spacing:-.02em}
-#sheet .act{
-  width:100%;text-align:left;padding:15px 4px;font-size:16px;
-  border-bottom:1px solid var(--line);
-}
+#sheet .act{width:100%;text-align:left;padding:15px 4px;font-size:16px;border-bottom:1px solid var(--line)}
 #sheet .act:last-of-type{border-bottom:0}
 #sheet .act.danger{color:#e0554e}
-#sheet .close{
-  width:100%;margin-top:14px;padding:15px;border-radius:var(--radius);
-  background:var(--bg);font-weight:600;font-size:16px;
-}
-.toast{
-  position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);
-  transform:translateX(-50%);z-index:80;
-  background:var(--ink);color:var(--bg);
-  padding:11px 20px;border-radius:100px;font-size:14.5px;font-weight:600;
-  box-shadow:var(--shadow);animation:pop .25s ease;
-}
+#sheet .close{width:100%;margin-top:14px;padding:15px;border-radius:var(--radius);background:var(--bg);font-weight:600;font-size:16px}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:80;background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:100px;font-size:14.5px;font-weight:600;box-shadow:var(--shadow);animation:pop .25s ease;pointer-events:none}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login">
   <div class="mark">
-    <i style="background:#ffd6a5"></i>
-    <i style="background:#bde0fe"></i>
-    <i style="background:#c9f2c7"></i>
-    <i style="background:#ffc8dd"></i>
+    <i style="background:#ffd6a5"></i><i style="background:#bde0fe"></i>
+    <i style="background:#c9f2c7"></i><i style="background:#ffc8dd"></i>
   </div>
   <h1>Liste</h1>
   <p>Anmelden, um weiterzumachen</p>
@@ -233,13 +186,10 @@ header{
   <button id="loginBtn">Anmelden</button>
 </div>
 
-<!-- APP -->
 <div id="app" class="hide">
   <header>
     <div id="listName"><span class="dot"></span><span id="listNameText">…</span></div>
-    <button class="iconbtn" id="themeBtn" aria-label="Darstellung wechseln">
-      <svg id="themeIcon" viewBox="0 0 24 24"></svg>
-    </button>
+    <button class="iconbtn" id="themeBtn" aria-label="Darstellung wechseln"><svg id="themeIcon" viewBox="0 0 24 24"></svg></button>
     <button class="iconbtn" id="menuBtn" aria-label="Menü">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></svg>
     </button>
@@ -249,7 +199,8 @@ header{
 
   <div id="bar">
     <div class="seg">
-      <button data-sort="date" class="on">Neueste</button>
+      <button data-sort="pos" class="on">Eigene</button>
+      <button data-sort="date">Neueste</button>
       <button data-sort="abc">A–Z</button>
     </div>
     <span class="count" id="count"></span>
@@ -259,11 +210,9 @@ header{
 
   <div id="composer">
     <div id="suggest"></div>
-    <div class="row">
+    <div class="bottom">
       <input id="entry" placeholder="Was fehlt?" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done">
-      <button id="addBtn" aria-label="Hinzufügen">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
+      <button id="addBtn" aria-label="Hinzufügen"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
   </div>
 </div>
@@ -273,50 +222,31 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
-
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ---------- pastel palette (stable per list) ---------- */
-const PASTELS = [
-  '#ffd6a5', // apricot
-  '#bde0fe', // sky
-  '#c9f2c7', // mint
-  '#ffc8dd', // blush
-  '#e0c3fc', // lilac
-  '#fdffb6', // butter
-  '#a0e7e5', // aqua
-  '#ffb7b2', // coral
-];
-function hueOf(str){
+const PASTELS = ['#ffd6a5','#bde0fe','#c9f2c7','#ffc8dd','#e0c3fc','#fdffb6','#a0e7e5','#ffb7b2'];
+const hueOf = s => {
   let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return PASTELS[h % PASTELS.length];
-}
-
-/* ---------- state ---------- */
-let lists = [];
-let items = [];          // items of the active list
-let vocab = [];          // distinct item names, all lists, for autocomplete
-let activeId = null;
-let sort = 'date';
-let channel = null;
-
+};
 const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let lists = [], items = [], vocab = [];
+let activeId = null, sort = 'pos', channel = null;
+let dragging = false;
 
 /* ---------- theme ---------- */
 const SUN = '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/>';
 const MOON = '<path d="M20 14.5A8.2 8.2 0 0 1 9.5 4a8.3 8.3 0 1 0 10.5 10.5z"/>';
-function applyTheme(t){
+const applyTheme = t => {
   document.documentElement.dataset.theme = t;
   $('#themeIcon').innerHTML = t === 'dark' ? SUN : MOON;
   localStorage.setItem('theme', t);
-}
-applyTheme(
-  localStorage.getItem('theme') ||
-  (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-);
-$('#themeBtn').onclick = () =>
-  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+};
+applyTheme(localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+$('#themeBtn').onclick = () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 
 /* ---------- auth ---------- */
 $('#loginBtn').onclick = signIn;
@@ -328,16 +258,12 @@ async function signIn(){
   $('#loginErr').textContent = '';
   const { error } = await db.auth.signInWithPassword({
     email: $('#email').value.trim(),
-    password: $('#pw').value,
+    password: $('#pw').value
   });
   btn.disabled = false;
-  if (error) {
-    $('#loginErr').textContent = 'E-Mail oder Passwort stimmt nicht.';
-    return;
-  }
+  if (error){ $('#loginErr').textContent = 'E-Mail oder Passwort stimmt nicht.'; return; }
   start();
 }
-
 db.auth.getSession().then(({ data }) => { if (data.session) start(); });
 
 /* ---------- boot ---------- */
@@ -351,8 +277,7 @@ async function start(){
 async function loadLists(){
   const { data } = await db.from('lists').select('*').order('created_at');
   lists = data || [];
-  if (!lists.length) { await addList('Einkauf'); return; }
-
+  if (!lists.length){ await addList('Einkauf'); return; }
   const saved = localStorage.getItem('activeList');
   activeId = lists.some(l => l.id === saved) ? saved : lists[0].id;
   renderTabs();
@@ -361,31 +286,40 @@ async function loadLists(){
 }
 
 async function loadItems(){
+  if (dragging) return;                 // während des ziehens nichts überschreiben
   const { data } = await db.from('items').select('*').eq('list_id', activeId);
   items = data || [];
   renderItems();
 }
 
-/* autocomplete pool = every name ever typed, across all lists */
 async function loadVocab(){
   const { data } = await db.from('items').select('name');
   vocab = [...new Set((data || []).map(r => r.name))];
 }
 
-/* ---------- realtime ---------- */
 function subscribe(){
   if (channel) db.removeChannel(channel);
   channel = db.channel('sync')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, () => {
+    .on('postgres_changes', { event:'*', schema:'public', table:'items' }, () => {
       loadItems(); loadVocab();
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, async () => {
+    .on('postgres_changes', { event:'*', schema:'public', table:'lists' }, async () => {
       const { data } = await db.from('lists').select('*').order('created_at');
       lists = data || [];
       if (!lists.some(l => l.id === activeId) && lists.length) activeId = lists[0].id;
       renderTabs(); loadItems();
     })
     .subscribe();
+}
+
+/* ---------- sortierung ---------- */
+function ordered(){
+  return [...items].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;      // erledigte sinken nach unten
+    if (sort === 'abc')  return a.name.localeCompare(b.name, 'de');
+    if (sort === 'date') return new Date(b.created_at) - new Date(a.created_at);
+    return (a.pos ?? 0) - (b.pos ?? 0);
+  });
 }
 
 /* ---------- render ---------- */
@@ -416,48 +350,70 @@ function renderTabs(){
 function renderItems(){
   const box = $('#items');
   box.innerHTML = '';
-
   const cur = lists.find(l => l.id === activeId);
   const color = cur ? hueOf(cur.name) : PASTELS[0];
+  const rows = ordered();
 
-  const sorted = [...items].sort((a, b) => {
-    // open items always float above done ones
-    if (a.done !== b.done) return a.done ? 1 : -1;
-    return sort === 'abc'
-      ? a.name.localeCompare(b.name, 'de')
-      : new Date(b.created_at) - new Date(a.created_at);
-  });
-
-  if (!sorted.length){
+  if (!rows.length){
     box.innerHTML = '<div id="empty">Noch nichts drauf.<br>Tipp unten ein, was fehlt.</div>';
     $('#count').textContent = '';
     return;
   }
 
-  sorted.forEach(it => {
-    const p = document.createElement('div');
-    p.className = 'pill' + (it.done ? ' done' : '');
-    p.style.background = color;
+  rows.forEach(it => box.append(rowEl(it, color)));
 
-    const label = document.createElement('span');
-    label.textContent = it.name;
-    p.append(label);
-
-    const x = document.createElement('span');
-    x.className = 'x';
-    x.textContent = '×';
-    x.onclick = e => { e.stopPropagation(); removeItem(it.id); };
-    p.append(x);
-
-    p.onclick = () => toggleItem(it);
-    box.append(p);
-  });
-
-  const open = items.filter(i => !i.done).length;
-  $('#count').textContent = open ? `${open} offen` : 'alles erledigt';
+  const open  = items.filter(i => !i.done);
+  const units = open.reduce((n, i) => n + (i.qty || 1), 0);
+  $('#count').textContent = open.length
+    ? (units > open.length ? `${open.length} offen · ${units} Stück` : `${open.length} offen`)
+    : 'alles erledigt';
 }
 
-/* ---------- actions ---------- */
+function rowEl(it, color){
+  const row = document.createElement('div');
+  row.className = 'row' + (it.done ? ' done' : '');
+  row.style.background = color;
+  row.dataset.id = it.id;
+
+  const name = document.createElement('div');
+  name.className = 'name';
+  name.textContent = it.name;
+  name.onclick = () => toggleItem(it);
+  row.append(name);
+
+  // Menge: − 2 + — Minus und Zahl erscheinen erst ab 2
+  const q = it.qty || 1;
+  const qty = document.createElement('div');
+  qty.className = 'qty';
+
+  const minus = document.createElement('button');
+  minus.className = 'minus' + (q < 2 ? ' off' : '');
+  minus.textContent = '−';
+  minus.setAttribute('aria-label', 'Weniger');
+  minus.onclick = e => { e.stopPropagation(); setQty(it, q - 1); };
+
+  const num = document.createElement('span');
+  num.className = 'num' + (q < 2 ? ' off' : '');
+  num.textContent = q;
+
+  const plus = document.createElement('button');
+  plus.textContent = '+';
+  plus.setAttribute('aria-label', 'Mehr');
+  plus.onclick = e => { e.stopPropagation(); setQty(it, q + 1); };
+
+  qty.append(minus, num, plus);
+  row.append(qty);
+
+  const grip = document.createElement('div');
+  grip.className = 'grip' + (sort !== 'pos' ? ' off' : '');
+  grip.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 9h14M5 15h14"/></svg>';
+  grip.addEventListener('pointerdown', e => beginDrag(e, row, it));
+  row.append(grip);
+
+  return row;
+}
+
+/* ---------- aktionen ---------- */
 async function selectList(id){
   activeId = id;
   localStorage.setItem('activeList', id);
@@ -467,46 +423,56 @@ async function selectList(id){
 
 async function addList(name){
   const { data } = await db.from('lists').insert({ name }).select().single();
-  if (data){
-    lists.push(data);
-    await selectList(data.id);
-  }
+  if (data){ lists.push(data); await selectList(data.id); }
 }
-
 function newList(){
-  const name = prompt('Wie soll die Liste heißen?');
-  if (name && name.trim()) addList(name.trim());
+  const n = prompt('Wie soll die Liste heißen?');
+  if (n && n.trim()) addList(n.trim());
 }
 
 async function toggleItem(it){
-  // optimistic: flip locally first, DB confirms via realtime
   it.done = !it.done;
   renderItems();
   await db.from('items').update({ done: it.done }).eq('id', it.id);
 }
 
-async function removeItem(id){
-  items = items.filter(i => i.id !== id);
+async function setQty(it, n){
+  if (n < 1){                                  // von 1 auf 0 = löschen
+    items = items.filter(i => i.id !== it.id);
+    renderItems();
+    await db.from('items').delete().eq('id', it.id);
+    return;
+  }
+  if (n > 99) return;
+  it.qty = n;
   renderItems();
-  await db.from('items').delete().eq('id', id);
+  await db.from('items').update({ qty: n }).eq('id', it.id);
 }
 
 async function addItem(name){
   name = name.trim();
   if (!name) return;
 
-  // already on this list? just re-open it instead of duplicating
   const dupe = items.find(i => i.name.toLowerCase() === name.toLowerCase());
   if (dupe){
-    if (dupe.done) await toggleItem(dupe);
-    else toast('Steht schon drauf');
+    if (dupe.done){                            // erledigt → wieder öffnen
+      dupe.done = false;
+      renderItems();
+      toast(`${dupe.name} wieder offen`);
+      await db.from('items').update({ done:false }).eq('id', dupe.id);
+    } else {
+      await setQty(dupe, (dupe.qty || 1) + 1); // schon offen → menge hoch
+      toast(`${dupe.name} · ${dupe.qty}`);
+    }
     resetEntry();
     return;
   }
 
+  const maxPos = items.length ? Math.max(...items.map(i => i.pos ?? 0)) : 0;
   const { data } = await db.from('items')
-    .insert({ list_id: activeId, name })
+    .insert({ list_id: activeId, name, qty: 1, pos: maxPos + 1000 })
     .select().single();
+
   if (data){
     items.push(data);
     if (!vocab.includes(name)) vocab.push(name);
@@ -520,7 +486,7 @@ function resetEntry(){
   $('#suggest').innerHTML = '';
 }
 
-/* ---------- entry + autocomplete ---------- */
+/* ---------- autocomplete ab dem 3. buchstaben ---------- */
 const entry = $('#entry');
 
 entry.oninput = () => {
@@ -529,16 +495,33 @@ entry.oninput = () => {
   box.innerHTML = '';
   if (q.length < 3) return;
 
-  const onList = new Set(items.filter(i => !i.done).map(i => i.name.toLowerCase()));
+  // was steht schon auf DIESER liste? (offen -> tap erhöht die menge)
+  const onList = new Map(items.map(i => [i.name.toLowerCase(), i]));
+
   const hits = vocab
     .filter(n => n.toLowerCase().includes(q))
-    .filter(n => n.toLowerCase() !== q)      // exact match needs no suggestion
-    .filter(n => !onList.has(n.toLowerCase())) // already open on this list
+    .sort((a, b) => {                            // treffer am wortanfang zuerst
+      const sa = a.toLowerCase().startsWith(q) ? 0 : 1;
+      const sb = b.toLowerCase().startsWith(q) ? 0 : 1;
+      return sa - sb || a.localeCompare(b, 'de');
+    })
     .slice(0, 6);
 
   hits.forEach(n => {
     const b = document.createElement('button');
-    b.textContent = n;
+    const i = n.toLowerCase().indexOf(q);
+    const hit = onList.get(n.toLowerCase());
+
+    // getippter teil kräftig, rest gedimmt
+    let label = '<em>' + esc(n.slice(0, i)) + '</em>'
+              + esc(n.slice(i, i + q.length))
+              + '<em>' + esc(n.slice(i + q.length)) + '</em>';
+
+    // steht schon offen drauf -> zeigen, was ein tap bewirkt
+    if (hit && !hit.done) label += ' <b>' + ((hit.qty || 1) + 1) + '</b>';
+    if (hit && hit.done)  label += ' <b>↺</b>';
+
+    b.innerHTML = label;
     b.onclick = () => addItem(n);
     box.append(b);
   });
@@ -547,78 +530,104 @@ entry.oninput = () => {
 entry.onkeydown = e => { if (e.key === 'Enter') addItem(entry.value); };
 $('#addBtn').onclick = () => addItem(entry.value);
 
-/* ---------- toast ---------- */
-let toastTimer;
-function toast(msg){
-  document.querySelector('.toast')?.remove();
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  document.body.append(t);
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.remove(), 1800);
-}
+/* ---------- drag & drop ---------- */
+let drag = null;
 
-/* ---------- menu sheet ---------- */
-$('#menuBtn').onclick = openMenu;
+function beginDrag(e, row, it){
+  if (sort !== 'pos' || drag) return;
+  e.preventDefault();
+  e.stopPropagation();
 
-function openMenu(){
-  const cur = lists.find(l => l.id === activeId);
-  const doneCount = items.filter(i => i.done).length;
+  dragging = true;
+  const box = $('#items');
+  const siblings = [...box.querySelectorAll('.row')];
+  const rect = row.getBoundingClientRect();
+  const step = rect.height + 8;                 // zeilenhöhe + margin
 
-  const sheet = document.createElement('div');
-  sheet.id = 'sheet';
-  sheet.innerHTML = `
-    <div class="panel">
-      <h2>${cur ? esc(cur.name) : 'Liste'}</h2>
-      <button class="act" data-a="clear">Erledigte entfernen${doneCount ? ` (${doneCount})` : ''}</button>
-      <button class="act" data-a="rename">Liste umbenennen</button>
-      <button class="act" data-a="new">Neue Liste</button>
-      <button class="act danger" data-a="delete">Liste löschen</button>
-      <button class="act danger" data-a="signout">Abmelden</button>
-      <button class="close" data-a="close">Schließen</button>
-    </div>`;
-
-  sheet.onclick = async e => {
-    const a = e.target.dataset.a;
-    if (!a && e.target !== sheet) return;
-    if (a !== 'close' && a) sheet.remove(); else { sheet.remove(); return; }
-
-    if (a === 'clear'){
-      const ids = items.filter(i => i.done).map(i => i.id);
-      if (!ids.length) return;
-      items = items.filter(i => !i.done);
-      renderItems();
-      await db.from('items').delete().in('id', ids);
-    }
-    if (a === 'rename'){
-      const name = prompt('Neuer Name', cur.name);
-      if (name && name.trim()){
-        await db.from('lists').update({ name: name.trim() }).eq('id', activeId);
-        cur.name = name.trim();
-        renderTabs(); renderItems();
-      }
-    }
-    if (a === 'new') newList();
-    if (a === 'delete'){
-      if (lists.length < 2){ toast('Die letzte Liste bleibt'); return; }
-      if (!confirm(`„${cur.name}" mit allen Einträgen löschen?`)) return;
-      await db.from('lists').delete().eq('id', activeId);
-      lists = lists.filter(l => l.id !== activeId);
-      await selectList(lists[0].id);
-    }
-    if (a === 'signout'){
-      await db.auth.signOut();
-      location.reload();
-    }
+  drag = {
+    row, box, it, step,
+    startY: e.clientY,
+    index: siblings.indexOf(row),
+    order: siblings,                            // ausgangsreihenfolge
+    shift: 0                                    // um wie viele plätze verschoben
   };
-  document.body.append(sheet);
+
+  row.classList.add('lift');
+  row.setPointerCapture?.(e.pointerId);
+  navigator.vibrate?.(10);
+
+  document.addEventListener('pointermove', onDrag, { passive:false });
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
 }
 
-const esc = s => s.replace(/[&<>"']/g, c =>
-  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+function onDrag(e){
+  if (!drag) return;
+  e.preventDefault();
 
-/* ---------- sort ---------- */
+  const { row, step, order, index } = drag;
+  const dy = e.clientY - drag.startY;
+  row.style.transform = `translateY(${dy}px)`;
+
+  // wie viele plätze hat sich die zeile verschoben?
+  let shift = Math.round(dy / step);
+  shift = Math.max(-index, Math.min(order.length - 1 - index, shift));
+
+  if (shift !== drag.shift){
+    drag.shift = shift;
+
+    // alle anderen zeilen entsprechend ausweichen lassen
+    order.forEach((el, i) => {
+      if (el === row) return;
+      el.classList.add('shift');
+      let move = 0;
+      if (shift > 0 && i > index && i <= index + shift) move = -step;
+      if (shift < 0 && i < index && i >= index + shift) move =  step;
+      el.style.transform = move ? `translateY(${move}px)` : '';
+    });
+  }
+
+  // autoscroll an den rändern
+  const bb = drag.box.getBoundingClientRect();
+  if (e.clientY < bb.top + 70)    drag.box.scrollTop -= 10;
+  if (e.clientY > bb.bottom - 70) drag.box.scrollTop += 10;
+}
+
+async function endDrag(){
+  if (!drag) return;
+  const { row, order, index, shift } = drag;
+
+  document.removeEventListener('pointermove', onDrag);
+  document.removeEventListener('pointerup', endDrag);
+  document.removeEventListener('pointercancel', endDrag);
+
+  // alle transforms zurücksetzen
+  order.forEach(el => { el.style.transform = ''; el.classList.remove('shift'); });
+  row.classList.remove('lift');
+  drag = null;
+
+  if (!shift){ dragging = false; return; }
+
+  // neue reihenfolge berechnen
+  const ids = order.map(el => el.dataset.id);
+  const [moved] = ids.splice(index, 1);
+  ids.splice(index + shift, 0, moved);
+
+  // pos-werte neu vergeben und speichern
+  const updates = [];
+  ids.forEach((id, i) => {
+    const it = items.find(x => x.id === id);
+    if (!it) return;
+    const pos = (i + 1) * 1000;
+    if (it.pos !== pos){ it.pos = pos; updates.push({ id, pos }); }
+  });
+
+  renderItems();
+  await Promise.all(updates.map(u => db.from('items').update({ pos:u.pos }).eq('id', u.id)));
+  dragging = false;
+}
+
+/* ---------- sortier-umschalter ---------- */
 document.querySelectorAll('#bar .seg button').forEach(b => {
   b.onclick = () => {
     document.querySelectorAll('#bar .seg button').forEach(x => x.classList.remove('on'));
@@ -630,17 +639,85 @@ document.querySelectorAll('#bar .seg button').forEach(b => {
 });
 {
   const saved = localStorage.getItem('sort');
-  if (saved === 'abc'){
-    sort = 'abc';
-    document.querySelector('[data-sort="date"]').classList.remove('on');
-    document.querySelector('[data-sort="abc"]').classList.add('on');
+  if (saved && ['pos','date','abc'].includes(saved)){
+    sort = saved;
+    document.querySelectorAll('#bar .seg button').forEach(x => x.classList.remove('on'));
+    document.querySelector(`[data-sort="${saved}"]`).classList.add('on');
   }
 }
 
-/* ---------- service worker ---------- */
-if ('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+/* ---------- menü ---------- */
+$('#menuBtn').onclick = () => {
+  const cur = lists.find(l => l.id === activeId);
+  const doneCount = items.filter(i => i.done).length;
+
+  const sheet = document.createElement('div');
+  sheet.id = 'sheet';
+  sheet.innerHTML = `
+    <div class="panel">
+      <h2>${esc(cur ? cur.name : 'Liste')}</h2>
+      <button class="act" data-a="reopen">Alle wieder öffnen${doneCount ? ` (${doneCount})` : ''}</button>
+      <button class="act" data-a="clear">Erledigte entfernen${doneCount ? ` (${doneCount})` : ''}</button>
+      <button class="act" data-a="rename">Liste umbenennen</button>
+      <button class="act" data-a="new">Neue Liste</button>
+      <button class="act danger" data-a="delete">Liste löschen</button>
+      <button class="act danger" data-a="signout">Abmelden</button>
+      <button class="close" data-a="close">Schließen</button>
+    </div>`;
+
+  sheet.onclick = async e => {
+    const a = e.target.dataset.a;
+    if (!a && e.target !== sheet) return;
+    sheet.remove();
+    if (!a || a === 'close') return;
+
+    if (a === 'reopen'){
+      const ids = items.filter(i => i.done).map(i => i.id);
+      if (!ids.length){ toast('Nichts erledigt'); return; }
+      items.forEach(i => i.done = false);
+      renderItems();
+      await db.from('items').update({ done:false }).in('id', ids);
+    }
+    if (a === 'clear'){
+      const ids = items.filter(i => i.done).map(i => i.id);
+      if (!ids.length){ toast('Nichts erledigt'); return; }
+      items = items.filter(i => !i.done);
+      renderItems();
+      await db.from('items').delete().in('id', ids);
+    }
+    if (a === 'rename'){
+      const n = prompt('Neuer Name', cur.name);
+      if (n && n.trim()){
+        await db.from('lists').update({ name:n.trim() }).eq('id', activeId);
+        cur.name = n.trim();
+        renderTabs(); renderItems();
+      }
+    }
+    if (a === 'new') newList();
+    if (a === 'delete'){
+      if (lists.length < 2){ toast('Die letzte Liste bleibt'); return; }
+      if (!confirm(`„${cur.name}" mit allen Einträgen löschen?`)) return;
+      await db.from('lists').delete().eq('id', activeId);
+      lists = lists.filter(l => l.id !== activeId);
+      await selectList(lists[0].id);
+    }
+    if (a === 'signout'){ await db.auth.signOut(); location.reload(); }
+  };
+  document.body.append(sheet);
+};
+
+let toastTimer;
+function toast(msg){
+  document.querySelector('.toast')?.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.append(t);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.remove(), 1600);
 }
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
