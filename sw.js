@@ -1,8 +1,12 @@
-const CACHE = 'liste-v1.1';
+const VERSION = '1.2';
+const CACHE = 'liste-v' + VERSION;
+
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -16,10 +20,16 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // never cache Supabase — data must always be fresh
+  // Supabase: niemals cachen, Daten muessen frisch sein
   if (url.hostname.endsWith('supabase.co')) return;
 
-  // app shell: network first, cache as fallback
+  // version.json: niemals cachen, sonst findet der Update-Check nie ein Update
+  if (url.pathname.endsWith('version.json')) {
+    e.respondWith(fetch(e.request, { cache: 'no-store' }).catch(() => new Response('{}', {headers:{'Content-Type':'application/json'}})));
+    return;
+  }
+
+  // App-Shell: erst Netz, bei Ausfall der Cache
   e.respondWith(
     fetch(e.request)
       .then(res => {

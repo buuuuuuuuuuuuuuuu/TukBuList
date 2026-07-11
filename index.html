@@ -156,6 +156,42 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 #addBtn:active{transform:scale(.9)}
 #addBtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
 
+/* VERSION */
+#ver{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  padding-top:9px;
+  font-size:11px;font-weight:600;letter-spacing:.04em;
+  color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+#verDot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--ink-faint);
+  transition:background .3s ease;
+}
+#verDot.ok{background:#7dcf8a}      /* aktuell */
+#verDot.old{background:#ffb020;animation:blink 1.6s ease-in-out infinite}
+#verDot.off{background:var(--ink-faint);opacity:.4}  /* check nicht möglich */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* UPDATE-BANNER */
+#update{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:10px;padding:11px 12px 11px 16px;
+  border-radius:100px;
+  background:var(--ink);color:var(--bg);
+  font-size:14px;font-weight:600;
+  animation:pop .3s cubic-bezier(.3,1.4,.5,1);
+}
+#update span{flex:1}
+#update button{
+  padding:7px 14px;border-radius:100px;
+  background:var(--bg);color:var(--ink);
+  font-size:13.5px;font-weight:700;flex-shrink:0;
+  transition:transform .12s;
+}
+#update button:active{transform:scale(.93)}
+
 /* SHEET */
 #sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.35);backdrop-filter:blur(3px);display:flex;align-items:flex-end;animation:fade .2s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -209,16 +245,23 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
   <div id="items"></div>
 
   <div id="composer">
+    <div id="update" class="hide">
+      <span>Neue Version verfügbar</span>
+      <button id="reloadBtn">Neu laden</button>
+    </div>
     <div id="suggest"></div>
     <div class="bottom">
       <input id="entry" placeholder="Was fehlt?" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done">
       <button id="addBtn" aria-label="Hinzufügen"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
+    <div id="ver"><span id="verNum">…</span><span id="verDot"></span></div>
   </div>
 </div>
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const VERSION = '1.2';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -716,6 +759,50 @@ function toast(msg){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.remove(), 1600);
 }
+
+/* ---------- version-tracker ---------- */
+$('#verNum').textContent = 'v' + VERSION;
+
+const dot = $('#verDot');
+let updateReady = false;
+
+async function checkVersion(){
+  if (updateReady) return;
+  try {
+    // cache-buster: github pages liefert sonst die alte datei aus
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const { version } = await r.json();
+
+    if (version && version !== VERSION){
+      updateReady = true;
+      dot.className = 'old';
+      $('#verNum').textContent = 'v' + VERSION + ' → v' + version;
+      $('#update').classList.remove('hide');
+    } else {
+      dot.className = 'ok';
+    }
+  } catch {
+    dot.className = 'off';   // offline oder datei fehlt: kein drama, nur grau
+  }
+}
+
+$('#reloadBtn').onclick = async () => {
+  // service-worker-caches leeren, sonst kommt wieder die alte app
+  try {
+    const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+    await Promise.all(regs.map(r => r.unregister()));
+    const keys = await caches?.keys?.() || [];
+    await Promise.all(keys.map(k => caches.delete(k)));
+  } catch {}
+  location.reload(true);
+};
+
+checkVersion();
+setInterval(checkVersion, 5 * 60 * 1000);              // alle 5 minuten
+document.addEventListener('visibilitychange', () => {  // und beim zurückkehren zur app
+  if (!document.hidden) checkVersion();
+});
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
