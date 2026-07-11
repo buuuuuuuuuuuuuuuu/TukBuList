@@ -1,0 +1,36 @@
+name: Repo aktiv halten
+
+# GitHub deaktiviert geplante Workflows in Repos, die 60 Tage lang keinen Commit
+# gesehen haben. Dieser Job macht alle 30 Tage einen trivialen Commit und
+# verhindert damit, dass der Keep-alive-Job (und dieser hier) einschlafen.
+
+on:
+  schedule:
+    - cron: '23 5 1 * *'    # am 1. jedes Monats, 05:23 UTC
+  workflow_dispatch:         # + manuell ausloesbar
+
+permissions:
+  contents: write            # noetig, damit der Job pushen darf
+
+jobs:
+  touch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zeitstempel schreiben und committen
+        run: |
+          date -u '+%Y-%m-%d %H:%M UTC' > .keepalive
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .keepalive
+
+          # nur committen, wenn sich wirklich etwas geaendert hat
+          if git diff --staged --quiet; then
+            echo "Nichts zu committen."
+            exit 0
+          fi
+
+          git commit -m "chore: Repo aktiv halten"
+          git push
+          echo "Repo-Aktivitaet erneuert."

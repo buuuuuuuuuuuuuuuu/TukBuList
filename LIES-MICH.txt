@@ -1,0 +1,30 @@
+Diese beiden .yml-Dateien liegen im ZIP auch schon am richtigen Ort:
+
+    .github/workflows/keepalive.yml
+    .github/workflows/repo-alive.yml
+
+ABER: Ordner, die mit einem Punkt beginnen, blenden iOS, macOS und Windows
+standardmaessig aus. Du siehst sie nach dem Entpacken also vermutlich nicht.
+
+Deshalb liegen sie hier nochmal unversteckt.
+
+
+SO LEGST DU SIE IM REPO AN (klappt auch am Handy):
+
+  1. Im GitHub-Repo:  Add file  ->  Create new file
+  2. Als Dateinamen eintippen:
+
+         .github/workflows/keepalive.yml
+
+     (Die Schraegstriche erzeugen die Ordner automatisch mit.)
+  3. Inhalt von keepalive.yml hier reinkopieren
+  4. Commit changes
+  5. Dasselbe nochmal fuer:
+
+         .github/workflows/repo-alive.yml
+
+
+Danach im Tab "Actions" beide einmal manuell starten (Run workflow),
+um zu pruefen, ob sie durchlaufen.
+
+Den Ordner WORKFLOWS-HIER musst du NICHT ins Repo hochladen.

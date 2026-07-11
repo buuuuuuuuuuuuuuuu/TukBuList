@@ -2,18 +2,47 @@
 
 Einkaufsliste als PWA. Statisches Frontend (GitHub Pages) + Supabase (Auth, Daten, Realtime-Sync).
 
+---
+
+## !! WICHTIG BEIM ENTPACKEN !!
+
+Das ZIP enthaelt einen Ordner `.github/`. Ordner, die mit einem Punkt beginnen,
+werden von iOS, macOS und Windows standardmaessig **ausgeblendet** - du siehst sie
+nach dem Entpacken also moeglicherweise gar nicht.
+
+Deshalb liegen die beiden Workflow-Dateien zusaetzlich unversteckt im Ordner
+`WORKFLOWS-HIER/`. Inhaltlich sind sie identisch.
+
+**Im GitHub-Repo muessen sie an diesen Pfaden liegen:**
+
+```
+.github/workflows/keepalive.yml
+.github/workflows/repo-alive.yml
+```
+
+### So legst du sie an (klappt auch am Handy)
+
+1. Im Repo: `Add file` -> `Create new file`
+2. Als Dateiname eintippen: `.github/workflows/keepalive.yml`
+   (die Schraegstriche erzeugen die Ordner automatisch)
+3. Inhalt aus `WORKFLOWS-HIER/keepalive.yml` reinkopieren
+4. `Commit changes`
+5. Das Ganze nochmal fuer `.github/workflows/repo-alive.yml`
+
+---
+
 ## Deployen
 
-Alle Dateien ins Repo-Root, GitHub Pages auf `main` / `(root)`.
+Alle uebrigen Dateien ins Repo-Root, GitHub Pages auf `main` / `(root)`.
 
-## Keep-alive einrichten (einmalig, wichtig)
+## Die zwei Workflows
+
+### 1. `keepalive.yml` - Supabase wach halten
 
 Supabase pausiert Projekte im Free-Tarif nach etwa einer Woche ohne Zugriff.
-Der Workflow `.github/workflows/keepalive.yml` verhindert das, indem er alle 3 Tage
-eine triviale Anfrage schickt.
+Dieser Job pingt die Datenbank alle 3 Tage an.
 
-Damit er laeuft, braucht er zwei **Repository Secrets**:
-
+Er braucht zwei **Repository Secrets**:
 `Settings` -> `Secrets and variables` -> `Actions` -> `New repository secret`
 
 | Name            | Wert                                        |
@@ -21,18 +50,27 @@ Damit er laeuft, braucht er zwei **Repository Secrets**:
 | `SUPABASE_URL`  | `https://<projekt>.supabase.co`             |
 | `SUPABASE_KEY`  | der publishable Key (`sb_publishable_...`)  |
 
-Danach im Tab `Actions` einmal `Supabase wach halten` -> `Run workflow` ausloesen,
-um zu pruefen, ob es klappt. Es muss `HTTP 200` (oder `401`) und "Projekt ist wach"
-in der Ausgabe stehen.
+### 2. `repo-alive.yml` - Repo aktiv halten
 
-Hinweis: GitHub deaktiviert geplante Workflows in Repos, die 60 Tage lang keinen
-Commit gesehen haben. Bei laengerer Funkstille also einmal im Actions-Tab
-"Enable workflow" klicken.
+GitHub deaktiviert geplante Workflows in Repos ohne Commit-Aktivitaet nach 60 Tagen.
+Dieser Job schreibt einmal im Monat einen Zeitstempel in die Datei `.keepalive`
+und committet ihn. Damit bleibt auch der Supabase-Ping oben dauerhaft aktiv.
+
+Braucht keine Secrets, aber die Berechtigung zum Pushen. Falls der Job mit einem
+Permission-Fehler scheitert:
+`Settings` -> `Actions` -> `General` -> `Workflow permissions`
+-> **Read and write permissions** aktivieren.
+
+### Testen
+
+Tab `Actions` -> Workflow links auswaehlen -> `Run workflow`.
+Beide sind manuell ausloesbar (`workflow_dispatch`).
+
+---
 
 ## Neue Version veroeffentlichen
 
-Die Versionsnummer muss an **drei** Stellen hochgezogen werden - sonst zeigt die App
-den Update-Hinweis nicht an oder liefert die alte Datei aus dem Cache:
+Die Versionsnummer muss an **drei** Stellen hochgezogen werden:
 
 | Datei          | Stelle                                      |
 |----------------|---------------------------------------------|
@@ -44,13 +82,13 @@ Alle drei muessen **denselben** Wert haben.
 
 ## Der Version-Tracker
 
-- Die App kennt ihre eigene Version (`index.html` -> `VERSION`).
-- Sie laedt `version.json` beim Start, alle 5 Minuten und beim Zurueckkehren in die App.
-- `version.json` wird bewusst **nie** gecacht (Ausnahme im Service Worker + Cache-Buster im Fetch).
-- Weichen die Versionen ab -> Banner "Neue Version verfuegbar" ueber dem Eingabefeld.
-- "Neu laden" loescht Service-Worker-Registrierungen und alle Caches, dann Reload.
+- Die App kennt ihre eigene Version, laedt `version.json` beim Start,
+  alle 5 Minuten und beim Zurueckkehren in die App.
+- `version.json` wird nie gecacht (Ausnahme im Service Worker + Cache-Buster).
+- Bei Abweichung -> Banner "Neue Version verfuegbar".
+- "Neu laden" loescht Service-Worker und Caches, dann Reload.
 
-Punkt neben der Versionsnummer:
+Punkt neben der Versionsnummer unten:
 
 | Farbe   | Bedeutung                          |
 |---------|------------------------------------|
@@ -60,14 +98,14 @@ Punkt neben der Versionsnummer:
 
 ## Wenn die Datenbank doch mal schlaeft
 
-Die App zeigt dann einen eigenen Screen statt einer stumm leeren Liste, mit Link
-zum Supabase-Dashboard. Dort `Restore` / `Resume` klicken, ein bis zwei Minuten warten,
-in der App auf "Nochmal versuchen" tippen. Es gehen dabei **keine Daten verloren**.
+Die App zeigt einen eigenen Screen mit Link zum Supabase-Dashboard.
+Dort `Restore` / `Resume` klicken, kurz warten, in der App auf
+"Nochmal versuchen" tippen. Es gehen **keine Daten verloren**.
 
 ## Datenbank
 
 Tabellen `lists` und `items`, RLS auf `authenticated`.
-Zugang nur ueber die angelegten Accounts, Self-Signup ist deaktiviert.
+Self-Signup ist deaktiviert, Zugang nur ueber die angelegten Accounts.
 
 Spalten in `items`: `id`, `list_id`, `name`, `done`, `qty`, `pos`, `created_at`.
 `pos` steuert die manuelle Reihenfolge (Modus "Eigene"), Schrittweite 1000.
