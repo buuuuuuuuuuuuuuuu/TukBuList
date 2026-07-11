@@ -137,6 +137,48 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 
 #empty{text-align:center;color:var(--ink-faint);padding:56px 20px;font-size:15px;line-height:1.6}
 
+/* OFFLINE / DB SCHLAEFT */
+#offline{
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  z-index:30;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  padding:28px;
+  animation:fade .25s ease;
+}
+#offline .card{max-width:320px;text-align:center}
+#offline .zzz{display:flex;justify-content:center;gap:8px;margin-bottom:22px}
+#offline .zzz i{
+  width:14px;height:14px;border-radius:50%;display:block;
+  background:var(--ink-faint);
+  animation:snooze 2.2s ease-in-out infinite;
+}
+#offline .zzz i:nth-child(2){animation-delay:.35s}
+#offline .zzz i:nth-child(3){animation-delay:.7s}
+@keyframes snooze{
+  0%,100%{opacity:.25;transform:scale(.8)}
+  50%{opacity:.9;transform:scale(1)}
+}
+#offline h2{margin:0 0 10px;font-size:21px;font-weight:700;letter-spacing:-.02em}
+#offline p{margin:0 0 22px;font-size:14.5px;line-height:1.55;color:var(--ink-soft)}
+#offline a{
+  display:block;padding:14px;border-radius:var(--radius);
+  background:var(--ink);color:var(--bg);
+  font-size:15.5px;font-weight:700;text-decoration:none;
+  transition:opacity .15s;
+}
+#offline a:active{opacity:.65}
+#offline button{
+  width:100%;margin-top:10px;padding:13px;
+  border-radius:var(--radius);
+  color:var(--ink-soft);font-size:15px;font-weight:600;
+  border:1px solid var(--line);
+  transition:background .15s;
+}
+#offline button:active{background:var(--line)}
+#offline button:disabled{opacity:.5}
+
 /* COMPOSER */
 #composer{flex-shrink:0;position:relative;padding:10px 18px calc(env(safe-area-inset-bottom) + 12px);border-top:1px solid var(--line);background:var(--surface)}
 #suggest{position:absolute;bottom:100%;left:18px;right:18px;display:flex;flex-wrap:wrap;gap:7px;padding:0 0 10px}
@@ -244,6 +286,21 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 
   <div id="items"></div>
 
+  <div id="offline" class="hide">
+    <div class="card">
+      <div class="zzz">
+        <i></i><i></i><i></i>
+      </div>
+      <h2 id="offTitle">Datenbank schläft</h2>
+      <p id="offText">
+        Supabase pausiert Projekte im Free-Tarif nach etwa einer Woche ohne Zugriff.
+        Deine Listen sind vollständig da — die Datenbank muss nur aufgeweckt werden.
+      </p>
+      <a id="offLink" href="https://supabase.com/dashboard" target="_blank" rel="noopener">Projekt aufwecken</a>
+      <button id="offRetry">Nochmal versuchen</button>
+    </div>
+  </div>
+
   <div id="composer">
     <div id="update" class="hide">
       <span>Neue Version verfügbar</span>
@@ -261,7 +318,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const VERSION = '1.2';
+const VERSION = '1.3';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -304,7 +361,12 @@ async function signIn(){
     password: $('#pw').value
   });
   btn.disabled = false;
-  if (error){ $('#loginErr').textContent = 'E-Mail oder Passwort stimmt nicht.'; return; }
+  if (error){
+    $('#loginErr').textContent = isPaused(error)
+      ? 'Datenbank nicht erreichbar. Läuft das Supabase-Projekt?'
+      : 'E-Mail oder Passwort stimmt nicht.';
+    return;
+  }
   start();
 }
 db.auth.getSession().then(({ data }) => { if (data.session) start(); });
@@ -313,32 +375,80 @@ db.auth.getSession().then(({ data }) => { if (data.session) start(); });
 async function start(){
   $('#login').classList.add('hide');
   $('#app').classList.remove('hide');
-  await loadLists();
-  subscribe();
+  const ok = await loadLists();
+  if (ok) subscribe();
+}
+
+/* zeigt den "datenbank schläft"-screen und meldet, ob wieder alles läuft */
+function showOffline(err){
+  const paused = isPaused(err);
+  $('#offTitle').textContent = paused ? 'Datenbank schläft' : 'Keine Verbindung';
+  $('#offText').textContent  = paused
+    ? 'Supabase pausiert Projekte im Free-Tarif nach etwa einer Woche ohne Zugriff. Deine Listen sind vollständig da — die Datenbank muss nur aufgeweckt werden.'
+    : 'Die Datenbank ist gerade nicht erreichbar. Prüf deine Internetverbindung.';
+  $('#offLink').style.display = paused ? 'block' : 'none';
+  $('#offline').classList.remove('hide');
+}
+
+function hideOffline(){ $('#offline').classList.add('hide'); }
+
+/* pausierte projekte melden sich mit netzwerk-/gateway-fehlern, nicht mit 401 */
+function isPaused(err){
+  if (!err) return false;
+  const msg  = (err.message || '').toLowerCase();
+  const code = String(err.status || err.code || '');
+  if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load failed')) return true;
+  if (['502','503','504','544'].includes(code)) return true;
+  return false;
 }
 
 async function loadLists(){
-  const { data } = await db.from('lists').select('*').order('created_at');
+  const { data, error } = await db.from('lists').select('*').order('created_at');
+  if (error){ showOffline(error); return false; }
+
+  hideOffline();
   lists = data || [];
-  if (!lists.length){ await addList('Einkauf'); return; }
+  if (!lists.length){ await addList('Einkauf'); return true; }
+
   const saved = localStorage.getItem('activeList');
   activeId = lists.some(l => l.id === saved) ? saved : lists[0].id;
   renderTabs();
   await loadItems();
   await loadVocab();
+  return true;
 }
 
 async function loadItems(){
   if (dragging) return;                 // während des ziehens nichts überschreiben
-  const { data } = await db.from('items').select('*').eq('list_id', activeId);
+  const { data, error } = await db.from('items').select('*').eq('list_id', activeId);
+  if (error){ showOffline(error); return; }
+  hideOffline();
   items = data || [];
   renderItems();
 }
 
 async function loadVocab(){
-  const { data } = await db.from('items').select('name');
+  const { data, error } = await db.from('items').select('name');
+  if (error) return;                    // vokabular ist nice-to-have, kein grund für einen screen
   vocab = [...new Set((data || []).map(r => r.name))];
 }
+
+/* "nochmal versuchen" */
+$('#offRetry').onclick = async () => {
+  const btn = $('#offRetry');
+  btn.disabled = true;
+  btn.textContent = 'Verbinde …';
+  const ok = await loadLists();
+  btn.disabled = false;
+  btn.textContent = 'Nochmal versuchen';
+  if (ok){ subscribe(); toast('Wieder da'); }
+};
+
+/* beim zurückkehren in die app: still im hintergrund nachfassen */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (!$('#offline').classList.contains('hide')) loadLists().then(ok => { if (ok) subscribe(); });
+});
 
 function subscribe(){
   if (channel) db.removeChannel(channel);
