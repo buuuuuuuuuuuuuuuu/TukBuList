@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Liste">
+<meta name="theme-color" content="#faf9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16151a" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Liste</title>
+<style>
+:root{
+  --bg:#faf9f7; --surface:#ffffff; --line:#e8e5e0;
+  --ink:#1b1a18; --ink-soft:#8a857d; --ink-faint:#c4bfb7;
+  --pill-ink:#2a2725;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+}
+:root[data-theme="dark"]{
+  --bg:#16151a; --surface:#201f26; --line:#302e38;
+  --ink:#f2f0ee; --ink-soft:#8d8899; --ink-faint:#4a4756;
+  --pill-ink:#1a1820;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 20px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font:400 17px/1.4 ui-rounded,-apple-system,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;
+  overscroll-behavior-y:contain;
+  transition:background .3s ease,color .3s ease;
+}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+input{background:none;border:0;outline:0}
+.hide{display:none !important}
+
+/* ---------- LOGIN ---------- */
+#login{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;padding:32px;
+}
+#login .mark{display:flex;gap:7px;margin-bottom:10px}
+#login .mark i{width:16px;height:16px;border-radius:50%;display:block;animation:bob 2.4s ease-in-out infinite}
+#login .mark i:nth-child(2){animation-delay:.2s}
+#login .mark i:nth-child(3){animation-delay:.4s}
+#login .mark i:nth-child(4){animation-delay:.6s}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+#login h1{font-size:26px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}
+#login p{margin:0 0 14px;color:var(--ink-soft);font-size:15px}
+.field{
+  width:100%;max-width:300px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px;font-size:16px;
+}
+.field:focus{border-color:var(--ink-faint)}
+#loginBtn{
+  width:100%;max-width:300px;background:var(--ink);color:var(--bg);
+  border-radius:var(--radius);padding:15px;font-weight:600;font-size:16px;
+  transition:opacity .15s;
+}
+#loginBtn:active{opacity:.6}
+#loginBtn:disabled{opacity:.4}
+#loginErr{color:#e0554e;font-size:14px;min-height:20px;text-align:center;margin:0}
+
+/* ---------- APP SHELL ---------- */
+#app{display:flex;flex-direction:column;height:100%;height:100dvh}
+
+header{
+  padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;
+  display:flex;align-items:center;gap:12px;flex-shrink:0;
+}
+#listName{
+  font-size:27px;font-weight:700;letter-spacing:-.03em;
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  display:flex;align-items:center;gap:8px;
+}
+#listName .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.iconbtn{
+  width:38px;height:38px;border-radius:50%;
+  display:grid;place-items:center;flex-shrink:0;
+  color:var(--ink-soft);border:1px solid var(--line);
+  transition:background .15s;
+}
+.iconbtn:active{background:var(--line)}
+.iconbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* list tabs */
+#tabs{
+  display:flex;gap:8px;padding:4px 18px 12px;overflow-x:auto;flex-shrink:0;
+  scrollbar-width:none;
+}
+#tabs::-webkit-scrollbar{display:none}
+.tab{
+  padding:7px 15px;border-radius:100px;white-space:nowrap;font-size:14px;font-weight:600;
+  border:1.5px solid var(--line);color:var(--ink-soft);flex-shrink:0;
+  transition:all .18s ease;
+}
+.tab.on{color:var(--pill-ink);border-color:transparent}
+.tab.add{color:var(--ink-faint);padding:7px 13px}
+
+/* toolbar */
+#bar{
+  display:flex;align-items:center;gap:6px;padding:0 18px 10px;flex-shrink:0;
+  font-size:13px;color:var(--ink-soft);
+}
+#bar .seg{display:flex;background:var(--line);border-radius:100px;padding:2px}
+#bar .seg button{
+  padding:5px 12px;border-radius:100px;font-size:12.5px;font-weight:600;
+  color:var(--ink-soft);transition:all .18s;
+}
+#bar .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+#bar .count{margin-left:auto;font-variant-numeric:tabular-nums}
+
+/* ---------- ITEMS ---------- */
+#items{
+  flex:1;overflow-y:auto;padding:4px 18px 12px;
+  display:flex;flex-wrap:wrap;gap:9px;align-content:flex-start;
+  -webkit-overflow-scrolling:touch;
+}
+.pill{
+  padding:11px 17px;border-radius:100px;font-size:16px;font-weight:600;
+  color:var(--pill-ink);
+  display:flex;align-items:center;gap:8px;
+  transition:transform .28s cubic-bezier(.3,1.4,.5,1), filter .28s ease, opacity .28s ease;
+  animation:pop .3s cubic-bezier(.3,1.5,.5,1);
+  user-select:none;
+}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+.pill:active{transform:scale(.93)}
+/* the signature: done items desaturate + shrink instead of strikethrough */
+.pill.done{
+  filter:saturate(.12) opacity(.55);
+  transform:scale(.88);
+  font-weight:500;
+}
+.pill.done:active{transform:scale(.83)}
+.pill .x{
+  opacity:.35;font-size:19px;line-height:1;margin:-2px -4px -2px 0;
+  padding:2px 4px;
+}
+#empty{
+  width:100%;text-align:center;color:var(--ink-faint);
+  padding:56px 20px;font-size:15px;line-height:1.6;
+}
+
+/* ---------- INPUT ---------- */
+#composer{
+  flex-shrink:0;position:relative;
+  padding:10px 18px calc(env(safe-area-inset-bottom) + 12px);
+  border-top:1px solid var(--line);background:var(--surface);
+}
+#suggest{
+  position:absolute;bottom:100%;left:18px;right:18px;
+  display:flex;flex-wrap:wrap;gap:7px;
+  padding:0 0 10px;
+}
+#suggest button{
+  padding:8px 14px;border-radius:100px;font-size:14.5px;font-weight:600;
+  background:var(--bg);border:1.5px solid var(--line);color:var(--ink);
+  box-shadow:var(--shadow);
+  animation:pop .2s ease;
+}
+#suggest button:active{transform:scale(.94)}
+#composer .row{display:flex;align-items:center;gap:10px}
+#entry{
+  flex:1;background:var(--bg);border:1.5px solid var(--line);
+  border-radius:100px;padding:13px 18px;font-size:16px;min-width:0;
+}
+#entry:focus{border-color:var(--ink-faint)}
+#addBtn{
+  width:46px;height:46px;border-radius:50%;flex-shrink:0;
+  display:grid;place-items:center;color:var(--pill-ink);
+  transition:transform .15s;
+}
+#addBtn:active{transform:scale(.9)}
+#addBtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
+
+/* ---------- SHEET ---------- */
+#sheet{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(0,0,0,.35);backdrop-filter:blur(3px);
+  display:flex;align-items:flex-end;
+  animation:fade .2s ease;
+}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+#sheet .panel{
+  width:100%;background:var(--surface);
+  border-radius:22px 22px 0 0;
+  padding:22px 20px calc(env(safe-area-inset-bottom) + 22px);
+  animation:up .28s cubic-bezier(.2,.9,.3,1);
+}
+@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#sheet h2{margin:0 0 16px;font-size:19px;font-weight:700;letter-spacing:-.02em}
+#sheet .act{
+  width:100%;text-align:left;padding:15px 4px;font-size:16px;
+  border-bottom:1px solid var(--line);
+}
+#sheet .act:last-of-type{border-bottom:0}
+#sheet .act.danger{color:#e0554e}
+#sheet .close{
+  width:100%;margin-top:14px;padding:15px;border-radius:var(--radius);
+  background:var(--bg);font-weight:600;font-size:16px;
+}
+.toast{
+  position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);
+  transform:translateX(-50%);z-index:80;
+  background:var(--ink);color:var(--bg);
+  padding:11px 20px;border-radius:100px;font-size:14.5px;font-weight:600;
+  box-shadow:var(--shadow);animation:pop .25s ease;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="mark">
+    <i style="background:#ffd6a5"></i>
+    <i style="background:#bde0fe"></i>
+    <i style="background:#c9f2c7"></i>
+    <i style="background:#ffc8dd"></i>
+  </div>
+  <h1>Liste</h1>
+  <p>Anmelden, um weiterzumachen</p>
+  <input class="field" id="email" type="email" inputmode="email" autocomplete="username" placeholder="E-Mail">
+  <input class="field" id="pw" type="password" autocomplete="current-password" placeholder="Passwort">
+  <p id="loginErr"></p>
+  <button id="loginBtn">Anmelden</button>
+</div>
+
+<!-- APP -->
+<div id="app" class="hide">
+  <header>
+    <div id="listName"><span class="dot"></span><span id="listNameText">…</span></div>
+    <button class="iconbtn" id="themeBtn" aria-label="Darstellung wechseln">
+      <svg id="themeIcon" viewBox="0 0 24 24"></svg>
+    </button>
+    <button class="iconbtn" id="menuBtn" aria-label="Menü">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></svg>
+    </button>
+  </header>
+
+  <div id="tabs"></div>
+
+  <div id="bar">
+    <div class="seg">
+      <button data-sort="date" class="on">Neueste</button>
+      <button data-sort="abc">A–Z</button>
+    </div>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div id="items"></div>
+
+  <div id="composer">
+    <div id="suggest"></div>
+    <div class="row">
+      <input id="entry" placeholder="Was fehlt?" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done">
+      <button id="addBtn" aria-label="Hinzufügen">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
+
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------- pastel palette (stable per list) ---------- */
+const PASTELS = [
+  '#ffd6a5', // apricot
+  '#bde0fe', // sky
+  '#c9f2c7', // mint
+  '#ffc8dd', // blush
+  '#e0c3fc', // lilac
+  '#fdffb6', // butter
+  '#a0e7e5', // aqua
+  '#ffb7b2', // coral
+];
+function hueOf(str){
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return PASTELS[h % PASTELS.length];
+}
+
+/* ---------- state ---------- */
+let lists = [];
+let items = [];          // items of the active list
+let vocab = [];          // distinct item names, all lists, for autocomplete
+let activeId = null;
+let sort = 'date';
+let channel = null;
+
+const $ = s => document.querySelector(s);
+
+/* ---------- theme ---------- */
+const SUN = '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/>';
+const MOON = '<path d="M20 14.5A8.2 8.2 0 0 1 9.5 4a8.3 8.3 0 1 0 10.5 10.5z"/>';
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  $('#themeIcon').innerHTML = t === 'dark' ? SUN : MOON;
+  localStorage.setItem('theme', t);
+}
+applyTheme(
+  localStorage.getItem('theme') ||
+  (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+);
+$('#themeBtn').onclick = () =>
+  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+
+/* ---------- auth ---------- */
+$('#loginBtn').onclick = signIn;
+$('#pw').onkeydown = e => { if (e.key === 'Enter') signIn(); };
+
+async function signIn(){
+  const btn = $('#loginBtn');
+  btn.disabled = true;
+  $('#loginErr').textContent = '';
+  const { error } = await db.auth.signInWithPassword({
+    email: $('#email').value.trim(),
+    password: $('#pw').value,
+  });
+  btn.disabled = false;
+  if (error) {
+    $('#loginErr').textContent = 'E-Mail oder Passwort stimmt nicht.';
+    return;
+  }
+  start();
+}
+
+db.auth.getSession().then(({ data }) => { if (data.session) start(); });
+
+/* ---------- boot ---------- */
+async function start(){
+  $('#login').classList.add('hide');
+  $('#app').classList.remove('hide');
+  await loadLists();
+  subscribe();
+}
+
+async function loadLists(){
+  const { data } = await db.from('lists').select('*').order('created_at');
+  lists = data || [];
+  if (!lists.length) { await addList('Einkauf'); return; }
+
+  const saved = localStorage.getItem('activeList');
+  activeId = lists.some(l => l.id === saved) ? saved : lists[0].id;
+  renderTabs();
+  await loadItems();
+  await loadVocab();
+}
+
+async function loadItems(){
+  const { data } = await db.from('items').select('*').eq('list_id', activeId);
+  items = data || [];
+  renderItems();
+}
+
+/* autocomplete pool = every name ever typed, across all lists */
+async function loadVocab(){
+  const { data } = await db.from('items').select('name');
+  vocab = [...new Set((data || []).map(r => r.name))];
+}
+
+/* ---------- realtime ---------- */
+function subscribe(){
+  if (channel) db.removeChannel(channel);
+  channel = db.channel('sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, () => {
+      loadItems(); loadVocab();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, async () => {
+      const { data } = await db.from('lists').select('*').order('created_at');
+      lists = data || [];
+      if (!lists.some(l => l.id === activeId) && lists.length) activeId = lists[0].id;
+      renderTabs(); loadItems();
+    })
+    .subscribe();
+}
+
+/* ---------- render ---------- */
+function renderTabs(){
+  const tabs = $('#tabs');
+  tabs.innerHTML = '';
+  lists.forEach(l => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (l.id === activeId ? ' on' : '');
+    b.textContent = l.name;
+    if (l.id === activeId) b.style.background = hueOf(l.name);
+    b.onclick = () => selectList(l.id);
+    tabs.append(b);
+  });
+  const add = document.createElement('button');
+  add.className = 'tab add';
+  add.textContent = '+';
+  add.onclick = newList;
+  tabs.append(add);
+
+  const cur = lists.find(l => l.id === activeId);
+  if (cur){
+    $('#listNameText').textContent = cur.name;
+    $('#listName .dot').style.background = hueOf(cur.name);
+  }
+}
+
+function renderItems(){
+  const box = $('#items');
+  box.innerHTML = '';
+
+  const cur = lists.find(l => l.id === activeId);
+  const color = cur ? hueOf(cur.name) : PASTELS[0];
+
+  const sorted = [...items].sort((a, b) => {
+    // open items always float above done ones
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return sort === 'abc'
+      ? a.name.localeCompare(b.name, 'de')
+      : new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  if (!sorted.length){
+    box.innerHTML = '<div id="empty">Noch nichts drauf.<br>Tipp unten ein, was fehlt.</div>';
+    $('#count').textContent = '';
+    return;
+  }
+
+  sorted.forEach(it => {
+    const p = document.createElement('div');
+    p.className = 'pill' + (it.done ? ' done' : '');
+    p.style.background = color;
+
+    const label = document.createElement('span');
+    label.textContent = it.name;
+    p.append(label);
+
+    const x = document.createElement('span');
+    x.className = 'x';
+    x.textContent = '×';
+    x.onclick = e => { e.stopPropagation(); removeItem(it.id); };
+    p.append(x);
+
+    p.onclick = () => toggleItem(it);
+    box.append(p);
+  });
+
+  const open = items.filter(i => !i.done).length;
+  $('#count').textContent = open ? `${open} offen` : 'alles erledigt';
+}
+
+/* ---------- actions ---------- */
+async function selectList(id){
+  activeId = id;
+  localStorage.setItem('activeList', id);
+  renderTabs();
+  await loadItems();
+}
+
+async function addList(name){
+  const { data } = await db.from('lists').insert({ name }).select().single();
+  if (data){
+    lists.push(data);
+    await selectList(data.id);
+  }
+}
+
+function newList(){
+  const name = prompt('Wie soll die Liste heißen?');
+  if (name && name.trim()) addList(name.trim());
+}
+
+async function toggleItem(it){
+  // optimistic: flip locally first, DB confirms via realtime
+  it.done = !it.done;
+  renderItems();
+  await db.from('items').update({ done: it.done }).eq('id', it.id);
+}
+
+async function removeItem(id){
+  items = items.filter(i => i.id !== id);
+  renderItems();
+  await db.from('items').delete().eq('id', id);
+}
+
+async function addItem(name){
+  name = name.trim();
+  if (!name) return;
+
+  // already on this list? just re-open it instead of duplicating
+  const dupe = items.find(i => i.name.toLowerCase() === name.toLowerCase());
+  if (dupe){
+    if (dupe.done) await toggleItem(dupe);
+    else toast('Steht schon drauf');
+    resetEntry();
+    return;
+  }
+
+  const { data } = await db.from('items')
+    .insert({ list_id: activeId, name })
+    .select().single();
+  if (data){
+    items.push(data);
+    if (!vocab.includes(name)) vocab.push(name);
+    renderItems();
+  }
+  resetEntry();
+}
+
+function resetEntry(){
+  $('#entry').value = '';
+  $('#suggest').innerHTML = '';
+}
+
+/* ---------- entry + autocomplete ---------- */
+const entry = $('#entry');
+
+entry.oninput = () => {
+  const q = entry.value.trim().toLowerCase();
+  const box = $('#suggest');
+  box.innerHTML = '';
+  if (q.length < 3) return;
+
+  const onList = new Set(items.filter(i => !i.done).map(i => i.name.toLowerCase()));
+  const hits = vocab
+    .filter(n => n.toLowerCase().includes(q))
+    .filter(n => n.toLowerCase() !== q)      // exact match needs no suggestion
+    .filter(n => !onList.has(n.toLowerCase())) // already open on this list
+    .slice(0, 6);
+
+  hits.forEach(n => {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.onclick = () => addItem(n);
+    box.append(b);
+  });
+};
+
+entry.onkeydown = e => { if (e.key === 'Enter') addItem(entry.value); };
+$('#addBtn').onclick = () => addItem(entry.value);
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg){
+  document.querySelector('.toast')?.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.append(t);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.remove(), 1800);
+}
+
+/* ---------- menu sheet ---------- */
+$('#menuBtn').onclick = openMenu;
+
+function openMenu(){
+  const cur = lists.find(l => l.id === activeId);
+  const doneCount = items.filter(i => i.done).length;
+
+  const sheet = document.createElement('div');
+  sheet.id = 'sheet';
+  sheet.innerHTML = `
+    <div class="panel">
+      <h2>${cur ? esc(cur.name) : 'Liste'}</h2>
+      <button class="act" data-a="clear">Erledigte entfernen${doneCount ? ` (${doneCount})` : ''}</button>
+      <button class="act" data-a="rename">Liste umbenennen</button>
+      <button class="act" data-a="new">Neue Liste</button>
+      <button class="act danger" data-a="delete">Liste löschen</button>
+      <button class="act danger" data-a="signout">Abmelden</button>
+      <button class="close" data-a="close">Schließen</button>
+    </div>`;
+
+  sheet.onclick = async e => {
+    const a = e.target.dataset.a;
+    if (!a && e.target !== sheet) return;
+    if (a !== 'close' && a) sheet.remove(); else { sheet.remove(); return; }
+
+    if (a === 'clear'){
+      const ids = items.filter(i => i.done).map(i => i.id);
+      if (!ids.length) return;
+      items = items.filter(i => !i.done);
+      renderItems();
+      await db.from('items').delete().in('id', ids);
+    }
+    if (a === 'rename'){
+      const name = prompt('Neuer Name', cur.name);
+      if (name && name.trim()){
+        await db.from('lists').update({ name: name.trim() }).eq('id', activeId);
+        cur.name = name.trim();
+        renderTabs(); renderItems();
+      }
+    }
+    if (a === 'new') newList();
+    if (a === 'delete'){
+      if (lists.length < 2){ toast('Die letzte Liste bleibt'); return; }
+      if (!confirm(`„${cur.name}" mit allen Einträgen löschen?`)) return;
+      await db.from('lists').delete().eq('id', activeId);
+      lists = lists.filter(l => l.id !== activeId);
+      await selectList(lists[0].id);
+    }
+    if (a === 'signout'){
+      await db.auth.signOut();
+      location.reload();
+    }
+  };
+  document.body.append(sheet);
+}
+
+const esc = s => s.replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+/* ---------- sort ---------- */
+document.querySelectorAll('#bar .seg button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#bar .seg button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    sort = b.dataset.sort;
+    localStorage.setItem('sort', sort);
+    renderItems();
+  };
+});
+{
+  const saved = localStorage.getItem('sort');
+  if (saved === 'abc'){
+    sort = 'abc';
+    document.querySelector('[data-sort="date"]').classList.remove('on');
+    document.querySelector('[data-sort="abc"]').classList.add('on');
+  }
+}
+
+/* ---------- service worker ---------- */
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
