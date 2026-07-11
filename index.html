@@ -42,12 +42,20 @@ input{background:none;border:0;outline:0}
 
 /* LOGIN */
 #login{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px}
-#login .mark{display:flex;gap:7px;margin-bottom:10px}
-#login .mark i{width:16px;height:16px;border-radius:50%;display:block;animation:bob 2.4s ease-in-out infinite}
-#login .mark i:nth-child(2){animation-delay:.2s}
-#login .mark i:nth-child(3){animation-delay:.4s}
-#login .mark i:nth-child(4){animation-delay:.6s}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+#login .mark{
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  margin-bottom:26px;
+}
+#login .mark i{
+  height:13px;border-radius:100px;display:block;
+  animation:settle .7s cubic-bezier(.2,.9,.3,1) backwards;
+}
+#login .mark i:nth-child(1){margin-left:-12px;animation-delay:.05s}
+#login .mark i:nth-child(2){margin-left:20px;animation-delay:.15s}
+#login .mark i:nth-child(3){margin-left:-4px;animation-delay:.25s}
+@keyframes settle{
+  from{opacity:0;transform:translateY(-10px) scaleX(.7)}
+}
 #login h1{font-size:26px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}
 #login p{margin:0 0 14px;color:var(--ink-soft);font-size:15px}
 .field{width:100%;max-width:300px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;font-size:16px}
@@ -80,30 +88,67 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 
 /* ITEMS */
 #items{flex:1;overflow-y:auto;padding:2px 18px 12px;-webkit-overflow-scrolling:touch;position:relative}
+
+/* wrapper: haelt die pill und darunter den loeschbereich */
+.slot{
+  position:relative;
+  margin-bottom:8px;
+  border-radius:100px;
+  overflow:hidden;
+  animation:pop .26s cubic-bezier(.3,1.5,.5,1);
+  transition:transform .3s cubic-bezier(.2,.9,.3,1);
+}
+.slot.done{transform:scale(.955)}   /* erledigt schrumpft - jetzt am wrapper */
+.slot.done.lifted{transform:none}   /* beim ziehen aber nicht, sonst kollidiert es mit translateY */
+.slot.lifted{overflow:visible;z-index:20}
+
+/* der rote grund, liegt unter der pill */
+.trash{
+  position:absolute;inset:0;
+  background:#e0554e;
+  border-radius:100px;
+  display:flex;align-items:center;justify-content:flex-end;
+  padding-right:6px;
+}
+.trash button{
+  height:100%;padding:0 22px;
+  border-radius:100px;
+  color:#fff;font-size:15.5px;font-weight:700;
+  display:flex;align-items:center;gap:7px;
+  opacity:0;transform:translateX(8px);
+  transition:opacity .18s ease, transform .18s ease;
+}
+.trash.armed button{opacity:1;transform:none}
+.trash button:active{background:rgba(0,0,0,.16)}
+.trash svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
 .row{
+  position:relative;
   display:flex;align-items:center;gap:2px;
-  border-radius:100px;margin-bottom:8px;
+  border-radius:100px;
   padding:5px 6px 5px 16px;
   color:var(--pill-ink);
-  animation:pop .26s cubic-bezier(.3,1.5,.5,1);
-  transition:filter .3s ease, opacity .3s ease, transform .22s cubic-bezier(.2,.9,.3,1), box-shadow .2s ease;
+  transition:filter .3s ease, opacity .3s ease, transform .26s cubic-bezier(.2,.9,.3,1), box-shadow .2s ease;
   user-select:none;-webkit-user-select:none;
   will-change:transform;
+  touch-action:pan-y;
 }
 @keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
 
 /* die signatur: erledigt = entsättigt + geschrumpft, kein durchstreichen */
-.row.done{filter:saturate(.1) opacity(.5);transform:scale(.955)}
+.row.done{filter:saturate(.1) opacity(.5)}
 .row.done .name{font-weight:500}
+
+/* waehrend des wischens: keine transition, der finger fuehrt */
+.row.swiping{transition:none}
 
 /* drag */
 .row.lift{
   box-shadow:var(--lift);
   filter:none !important;opacity:1 !important;
-  z-index:20;position:relative;
   transition:box-shadow .2s ease;
 }
-.row.shift{transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+.slot.shift{transition:transform .22s cubic-bezier(.2,.9,.3,1)}
 
 .name{flex:1;min-width:0;font-size:16.5px;font-weight:600;padding:9px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
@@ -253,8 +298,9 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 
 <div id="login">
   <div class="mark">
-    <i style="background:#ffd6a5"></i><i style="background:#bde0fe"></i>
-    <i style="background:#c9f2c7"></i><i style="background:#ffc8dd"></i>
+    <i style="background:#ffc8dd;width:60px"></i>
+    <i style="background:#c9f2c7;width:44px"></i>
+    <i style="background:#ffd6a5;width:66px"></i>
   </div>
   <h1>Liste</h1>
   <p>Anmelden, um weiterzumachen</p>
@@ -318,7 +364,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const VERSION = '1.4';
+const VERSION = '1.6';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -336,6 +382,9 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 let lists = [], items = [], vocab = [];
 let activeId = null, sort = 'pos', channel = null;
 let dragging = false;
+let openRow = null;        // die eine zeile, deren löschbereich offen ist
+let drag = null;           // aktiver drag-vorgang
+let swipe = null;          // aktiver wisch-vorgang
 
 /* ---------- theme ---------- */
 const SUN = '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/>';
@@ -502,6 +551,7 @@ function renderTabs(){
 
 function renderItems(){
   const box = $('#items');
+  openRow = null;              // das DOM wird neu gebaut, alte zeiger sind wertlos
   box.innerHTML = '';
   const cur = lists.find(l => l.id === activeId);
   const color = cur ? hueOf(cur.name) : PASTELS[0];
@@ -523,6 +573,20 @@ function renderItems(){
 }
 
 function rowEl(it, color){
+  // wrapper: haelt den loeschbereich und die pill darueber
+  const slot = document.createElement('div');
+  slot.className = 'slot' + (it.done ? ' done' : '');
+  slot.dataset.id = it.id;
+
+  // roter grund mit loesch-knopf, liegt unter der pill
+  const trash = document.createElement('div');
+  trash.className = 'trash';
+  const del = document.createElement('button');
+  del.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg><span>Löschen</span>';
+  del.onclick = e => { e.stopPropagation(); removeItem(it, slot); };
+  trash.append(del);
+  slot.append(trash);
+
   const row = document.createElement('div');
   row.className = 'row' + (it.done ? ' done' : '');
   row.style.background = color;
@@ -531,7 +595,7 @@ function rowEl(it, color){
   const name = document.createElement('div');
   name.className = 'name';
   name.textContent = it.name;
-  name.onclick = () => toggleItem(it);
+  name.onclick = () => { if (!row._moved) toggleItem(it); };
   row.append(name);
 
   // Menge: − 2 + — Minus und Zahl erscheinen erst ab 2
@@ -543,7 +607,7 @@ function rowEl(it, color){
   minus.className = 'minus' + (q < 2 ? ' off' : '');
   minus.textContent = '−';
   minus.setAttribute('aria-label', 'Weniger');
-  minus.onclick = e => { e.stopPropagation(); setQty(it, q - 1); };
+  minus.onclick = e => { e.stopPropagation(); if (!row._moved) setQty(it, q - 1); };
 
   const num = document.createElement('span');
   num.className = 'num' + (q < 2 ? ' off' : '');
@@ -552,7 +616,7 @@ function rowEl(it, color){
   const plus = document.createElement('button');
   plus.textContent = '+';
   plus.setAttribute('aria-label', 'Mehr');
-  plus.onclick = e => { e.stopPropagation(); setQty(it, q + 1); };
+  plus.onclick = e => { e.stopPropagation(); if (!row._moved) setQty(it, q + 1); };
 
   qty.append(minus, num, plus);
   row.append(qty);
@@ -560,10 +624,14 @@ function rowEl(it, color){
   const grip = document.createElement('div');
   grip.className = 'grip' + (sort !== 'pos' ? ' off' : '');
   grip.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 9h14M5 15h14"/></svg>';
-  grip.addEventListener('pointerdown', e => beginDrag(e, row, it));
+  grip.addEventListener('pointerdown', e => beginDrag(e, slot, it));
   row.append(grip);
 
-  return row;
+  // nach links wischen -> loeschbereich freilegen
+  row.addEventListener('pointerdown', e => beginSwipe(e, row, trash));
+
+  slot.append(row);
+  return slot;
 }
 
 /* ---------- aktionen ---------- */
@@ -590,16 +658,32 @@ async function toggleItem(it){
 }
 
 async function setQty(it, n){
-  if (n < 1){                                  // von 1 auf 0 = löschen
-    items = items.filter(i => i.id !== it.id);
-    renderItems();
-    await db.from('items').delete().eq('id', it.id);
-    return;
-  }
+  if (n < 1) return;                  // löschen geht nur noch per wischen
   if (n > 99) return;
   it.qty = n;
   renderItems();
   await db.from('items').update({ qty: n }).eq('id', it.id);
+}
+
+/* löschen, mit ausblenden */
+async function removeItem(it, slot){
+  openRow = null;
+
+  if (slot){
+    slot.style.transition = 'opacity .2s ease, transform .25s ease, height .25s ease, margin .25s ease';
+    slot.style.height = slot.offsetHeight + 'px';
+    requestAnimationFrame(() => {
+      slot.style.opacity = '0';
+      slot.style.transform = 'translateX(-40px) scale(.9)';
+      slot.style.height = '0';
+      slot.style.marginBottom = '0';
+    });
+    await new Promise(r => setTimeout(r, 230));
+  }
+
+  items = items.filter(i => i.id !== it.id);
+  renderItems();
+  await db.from('items').delete().eq('id', it.id);
 }
 
 async function addItem(name){
@@ -683,30 +767,129 @@ entry.oninput = () => {
 entry.onkeydown = e => { if (e.key === 'Enter') addItem(entry.value); };
 $('#addBtn').onclick = () => addItem(entry.value);
 
-/* ---------- drag & drop ---------- */
-let drag = null;
+/* ---------- nach links wischen zum löschen ---------- */
+const SNAP = 116;          // wie weit die zeile einrastet (breite des löschknopfs)
+const ARM  = 70;           // ab hier rastet sie ein statt zurückzufedern
 
-function beginDrag(e, row, it){
+function closeSwipe(){
+  if (!openRow) return;
+  openRow.style.transform = '';
+  openRow.parentElement?.querySelector('.trash')?.classList.remove('armed');
+  openRow = null;
+}
+
+function beginSwipe(e, row, trash){
+  if (drag) return;                       // drag hat vorrang
+  if (e.target.closest('.grip')) return;  // der griff gehört dem drag
+
+  // eine andere zeile ist offen -> erst die schließen, sonst nichts
+  if (openRow && openRow !== row){ closeSwipe(); return; }
+
+  swipe = {
+    row, trash,
+    x0: e.clientX, y0: e.clientY,
+    base: openRow === row ? -SNAP : 0,    // schon offen? von dort weiterziehen
+    axis: null,                           // 'x' | 'y' | null (noch unklar)
+    dx: 0
+  };
+  row._moved = false;
+
+  document.addEventListener('pointermove', onSwipe, { passive:false });
+  document.addEventListener('pointerup', endSwipe);
+  document.addEventListener('pointercancel', endSwipe);
+}
+
+function onSwipe(e){
+  if (!swipe) return;
+  const { row, trash } = swipe;
+  const dx = e.clientX - swipe.x0;
+  const dy = e.clientY - swipe.y0;
+
+  // achse festlegen: was war zuerst eindeutig?
+  if (!swipe.axis){
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;   // noch zu wenig bewegung
+    swipe.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if (swipe.axis === 'x') row.classList.add('swiping');
+  }
+
+  // vertikal -> das ist scrollen, finger weg
+  if (swipe.axis === 'y'){ endSwipe(); return; }
+
+  e.preventDefault();
+  row._moved = true;                       // klick unterdrücken
+
+  // nur nach links, mit gummiband am ende
+  let x = swipe.base + dx;
+  if (x > 0) x = 0;
+  if (x < -SNAP) x = -SNAP - (Math.abs(x) - SNAP) * 0.25;
+
+  swipe.dx = x;
+  row.style.transform = `translateX(${x}px)`;
+  trash.classList.toggle('armed', x < -ARM);
+}
+
+function endSwipe(){
+  if (!swipe) return;
+  const { row, trash, dx, axis } = swipe;
+
+  document.removeEventListener('pointermove', onSwipe);
+  document.removeEventListener('pointerup', endSwipe);
+  document.removeEventListener('pointercancel', endSwipe);
+
+  row.classList.remove('swiping');
+  swipe = null;
+
+  if (axis !== 'x'){ row._moved = false; return; }
+
+  // weit genug -> einrasten und den löschknopf zeigen (das ist die "bestätigung")
+  if (dx < -ARM){
+    row.style.transform = `translateX(${-SNAP}px)`;
+    trash.classList.add('armed');
+    openRow = row;
+    navigator.vibrate?.(8);
+  } else {
+    row.style.transform = '';
+    trash.classList.remove('armed');
+    if (openRow === row) openRow = null;
+  }
+
+  // klick erst nach der geste wieder erlauben
+  setTimeout(() => { row._moved = false; }, 60);
+}
+
+// woanders hintippen schließt eine offene zeile
+$('#items').addEventListener('pointerdown', e => {
+  if (openRow && !e.target.closest('.slot')) closeSwipe();
+}, true);
+document.addEventListener('pointerdown', e => {
+  if (openRow && !e.target.closest('#items')) closeSwipe();
+});
+
+/* ---------- drag & drop ---------- */
+function beginDrag(e, slot, it){
   if (sort !== 'pos' || drag) return;
   e.preventDefault();
   e.stopPropagation();
 
+  closeSwipe();               // offene löschzeile zuklappen
   dragging = true;
+
   const box = $('#items');
-  const siblings = [...box.querySelectorAll('.row')];
-  const rect = row.getBoundingClientRect();
-  const step = rect.height + 8;                 // zeilenhöhe + margin
+  const siblings = [...box.querySelectorAll('.slot')];
+  const rect = slot.getBoundingClientRect();
+  const step = rect.height + 8;
 
   drag = {
-    row, box, it, step,
+    slot, box, it, step,
     startY: e.clientY,
-    index: siblings.indexOf(row),
-    order: siblings,                            // ausgangsreihenfolge
-    shift: 0                                    // um wie viele plätze verschoben
+    index: siblings.indexOf(slot),
+    order: siblings,
+    shift: 0
   };
 
-  row.classList.add('lift');
-  row.setPointerCapture?.(e.pointerId);
+  slot.classList.add('lifted');
+  slot.querySelector('.row').classList.add('lift');
+  slot.setPointerCapture?.(e.pointerId);
   navigator.vibrate?.(10);
 
   document.addEventListener('pointermove', onDrag, { passive:false });
@@ -718,20 +901,17 @@ function onDrag(e){
   if (!drag) return;
   e.preventDefault();
 
-  const { row, step, order, index } = drag;
+  const { slot, step, order, index } = drag;
   const dy = e.clientY - drag.startY;
-  row.style.transform = `translateY(${dy}px)`;
+  slot.style.transform = `translateY(${dy}px)`;
 
-  // wie viele plätze hat sich die zeile verschoben?
   let shift = Math.round(dy / step);
   shift = Math.max(-index, Math.min(order.length - 1 - index, shift));
 
   if (shift !== drag.shift){
     drag.shift = shift;
-
-    // alle anderen zeilen entsprechend ausweichen lassen
     order.forEach((el, i) => {
-      if (el === row) return;
+      if (el === slot) return;
       el.classList.add('shift');
       let move = 0;
       if (shift > 0 && i > index && i <= index + shift) move = -step;
@@ -740,7 +920,6 @@ function onDrag(e){
     });
   }
 
-  // autoscroll an den rändern
   const bb = drag.box.getBoundingClientRect();
   if (e.clientY < bb.top + 70)    drag.box.scrollTop -= 10;
   if (e.clientY > bb.bottom - 70) drag.box.scrollTop += 10;
@@ -748,25 +927,23 @@ function onDrag(e){
 
 async function endDrag(){
   if (!drag) return;
-  const { row, order, index, shift } = drag;
+  const { slot, order, index, shift } = drag;
 
   document.removeEventListener('pointermove', onDrag);
   document.removeEventListener('pointerup', endDrag);
   document.removeEventListener('pointercancel', endDrag);
 
-  // alle transforms zurücksetzen
   order.forEach(el => { el.style.transform = ''; el.classList.remove('shift'); });
-  row.classList.remove('lift');
+  slot.classList.remove('lifted');
+  slot.querySelector('.row').classList.remove('lift');
   drag = null;
 
   if (!shift){ dragging = false; return; }
 
-  // neue reihenfolge berechnen
   const ids = order.map(el => el.dataset.id);
   const [moved] = ids.splice(index, 1);
   ids.splice(index + shift, 0, moved);
 
-  // pos-werte neu vergeben und speichern
   const updates = [];
   ids.forEach((id, i) => {
     const it = items.find(x => x.id === id);
@@ -810,7 +987,6 @@ $('#menuBtn').onclick = () => {
     <div class="panel">
       <h2>${esc(cur ? cur.name : 'Liste')}</h2>
       <button class="act" data-a="reopen">Alle wieder öffnen${doneCount ? ` (${doneCount})` : ''}</button>
-      <button class="act" data-a="clear">Erledigte entfernen${doneCount ? ` (${doneCount})` : ''}</button>
       <button class="act" data-a="rename">Liste umbenennen</button>
       <button class="act" data-a="new">Neue Liste</button>
       <button class="act danger" data-a="delete">Liste löschen</button>
@@ -830,13 +1006,6 @@ $('#menuBtn').onclick = () => {
       items.forEach(i => i.done = false);
       renderItems();
       await db.from('items').update({ done:false }).in('id', ids);
-    }
-    if (a === 'clear'){
-      const ids = items.filter(i => i.done).map(i => i.id);
-      if (!ids.length){ toast('Nichts erledigt'); return; }
-      items = items.filter(i => !i.done);
-      renderItems();
-      await db.from('items').delete().in('id', ids);
     }
     if (a === 'rename'){
       const n = prompt('Neuer Name', cur.name);
