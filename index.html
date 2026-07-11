@@ -76,9 +76,24 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 
 #tabs{display:flex;gap:8px;padding:4px 18px 12px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
 #tabs::-webkit-scrollbar{display:none}
-.tab{padding:7px 15px;border-radius:100px;white-space:nowrap;font-size:14px;font-weight:600;border:1.5px solid var(--line);color:var(--ink-soft);flex-shrink:0;transition:all .18s ease}
+.tab{
+  padding:7px 15px;border-radius:100px;white-space:nowrap;font-size:14px;font-weight:600;
+  border:1.5px solid var(--line);color:var(--ink-soft);flex-shrink:0;
+  transition:all .18s ease;
+  user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;   /* kein "kopieren"-menue beim langen druecken */
+}
 .tab.on{color:var(--pill-ink);border-color:transparent}
 .tab.add{color:var(--ink-faint);padding:7px 13px}
+
+/* umsortieren: lange druecken, dann ziehen */
+.tab.lift{
+  box-shadow:var(--lift);
+  z-index:5;position:relative;
+  transition:none;              /* der finger fuehrt, keine verzoegerung */
+  cursor:grabbing;
+}
+.tab.shift{transition:transform .22s cubic-bezier(.2,.9,.3,1)}
 
 #bar{display:flex;align-items:center;gap:6px;padding:0 18px 10px;flex-shrink:0;font-size:13px;color:var(--ink-soft)}
 #bar .seg{display:flex;background:var(--line);border-radius:100px;padding:2px}
@@ -295,6 +310,11 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 #sheet .act{width:100%;text-align:left;padding:15px 4px;font-size:16px;border-bottom:1px solid var(--line)}
 #sheet .act:last-of-type{border-bottom:0}
 #sheet .act.danger{color:#e0554e}
+#sheet .hint{
+  margin:14px 4px 0;padding:0;
+  font-size:13px;line-height:1.45;
+  color:var(--ink-faint);
+}
 #sheet .close{width:100%;margin-top:14px;padding:15px;border-radius:var(--radius);background:var(--bg);font-weight:600;font-size:16px}
 
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:80;background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:100px;font-size:14.5px;font-weight:600;box-shadow:var(--shadow);animation:pop .25s ease;pointer-events:none}
@@ -371,7 +391,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const VERSION = '1.7';
+const VERSION = '1.8';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -406,6 +426,8 @@ let dragging = false;
 let openRow = null;        // die eine zeile, deren löschbereich offen ist
 let drag = null;           // aktiver drag-vorgang
 let swipe = null;          // aktiver wisch-vorgang
+let tabDrag = null;        // aktives umsortieren der listen
+let holdTimer = null;      // long-press-timer fuer den tab-drag
 
 /* ---------- theme ---------- */
 const SUN = '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/>';
@@ -474,7 +496,7 @@ function isPaused(err){
 }
 
 async function loadLists(){
-  const { data, error } = await db.from('lists').select('*').order('created_at');
+  const { data, error } = await db.from('lists').select('*').order('pos', { nullsFirst:false }).order('created_at');
   if (error){ showOffline(error); return false; }
 
   hideOffline();
@@ -528,7 +550,8 @@ function subscribe(){
       loadItems(); loadVocab();
     })
     .on('postgres_changes', { event:'*', schema:'public', table:'lists' }, async () => {
-      const { data } = await db.from('lists').select('*').order('created_at');
+      if (tabDrag) return;                  // nicht mitten im ziehen umbauen
+      const { data } = await db.from('lists').select('*').order('pos', { nullsFirst:false }).order('created_at');
       lists = data || [];
       if (!lists.some(l => l.id === activeId) && lists.length) activeId = lists[0].id;
       renderTabs(); loadItems();
@@ -554,8 +577,10 @@ function renderTabs(){
     const b = document.createElement('button');
     b.className = 'tab' + (l.id === activeId ? ' on' : '');
     b.textContent = l.name;
+    b.dataset.id = l.id;
     if (l.id === activeId) b.style.background = hueOf(l.name);
-    b.onclick = () => selectList(l.id);
+    b.onclick = () => { if (!b._moved) selectList(l.id); };
+    b.addEventListener('pointerdown', e => armTabDrag(e, b));
     tabs.append(b);
   });
   const add = document.createElement('button');
@@ -569,6 +594,122 @@ function renderTabs(){
     $('#listNameText').textContent = cur.name;
     $('#listName .dot').style.background = hueOf(cur.name);
   }
+}
+
+/* ---------- listen umsortieren: lange druecken, dann ziehen ---------- */
+const HOLD = 380;          // wie lange halten, bis der drag startet
+
+function armTabDrag(e, tab){
+  if (tabDrag) return;
+  const x0 = e.clientX, y0 = e.clientY;
+  tab._moved = false;
+
+  // wischt der finger vorher weg -> das war scrollen, kein drag
+  const cancel = ev => {
+    if (Math.abs(ev.clientX - x0) > 10 || Math.abs(ev.clientY - y0) > 10) disarm();
+  };
+  const disarm = () => {
+    clearTimeout(holdTimer);
+    document.removeEventListener('pointermove', cancel);
+    document.removeEventListener('pointerup', disarm);
+    document.removeEventListener('pointercancel', disarm);
+  };
+
+  document.addEventListener('pointermove', cancel);
+  document.addEventListener('pointerup', disarm);
+  document.addEventListener('pointercancel', disarm);
+
+  holdTimer = setTimeout(() => {
+    disarm();
+    beginTabDrag(x0, tab);
+  }, HOLD);
+}
+
+function beginTabDrag(x0, tab){
+  const bar = $('#tabs');
+  // nur die listen-tabs, nicht der "+"-knopf
+  const order = [...bar.querySelectorAll('.tab:not(.add)')];
+  const index = order.indexOf(tab);
+  if (index < 0) return;
+
+  const rect = tab.getBoundingClientRect();
+
+  tabDrag = {
+    tab, bar, order, index,
+    x0,
+    width: rect.width + 8,     // + gap
+    shift: 0
+  };
+
+  tab.classList.add('lift');
+  tab._moved = true;
+  navigator.vibrate?.(12);
+
+  document.addEventListener('pointermove', onTabDrag, { passive:false });
+  document.addEventListener('pointerup', endTabDrag);
+  document.addEventListener('pointercancel', endTabDrag);
+}
+
+function onTabDrag(e){
+  if (!tabDrag) return;
+  e.preventDefault();
+
+  const { tab, order, index, width } = tabDrag;
+  const dx = e.clientX - tabDrag.x0;
+  tab.style.transform = `translateX(${dx}px) scale(1.06)`;
+
+  let shift = Math.round(dx / width);
+  shift = Math.max(-index, Math.min(order.length - 1 - index, shift));
+
+  if (shift !== tabDrag.shift){
+    tabDrag.shift = shift;
+    order.forEach((el, i) => {
+      if (el === tab) return;
+      el.classList.add('shift');
+      let move = 0;
+      if (shift > 0 && i > index && i <= index + shift) move = -width;
+      if (shift < 0 && i < index && i >= index + shift) move =  width;
+      el.style.transform = move ? `translateX(${move}px)` : '';
+    });
+  }
+
+  // autoscroll am rand der tableiste
+  const bb = tabDrag.bar.getBoundingClientRect();
+  if (e.clientX < bb.left + 50)  tabDrag.bar.scrollLeft -= 8;
+  if (e.clientX > bb.right - 50) tabDrag.bar.scrollLeft += 8;
+}
+
+async function endTabDrag(){
+  if (!tabDrag) return;
+  const { tab, order, index, shift } = tabDrag;
+
+  document.removeEventListener('pointermove', onTabDrag);
+  document.removeEventListener('pointerup', endTabDrag);
+  document.removeEventListener('pointercancel', endTabDrag);
+
+  order.forEach(el => { el.style.transform = ''; el.classList.remove('shift'); });
+  tab.classList.remove('lift');
+  tabDrag = null;
+
+  setTimeout(() => { tab._moved = false; }, 80);   // klick nicht sofort wieder erlauben
+
+  if (!shift) return;
+
+  const ids = order.map(el => el.dataset.id);
+  const [moved] = ids.splice(index, 1);
+  ids.splice(index + shift, 0, moved);
+
+  const updates = [];
+  ids.forEach((id, i) => {
+    const l = lists.find(x => x.id === id);
+    if (!l) return;
+    const pos = (i + 1) * 1000;
+    if (l.pos !== pos){ l.pos = pos; updates.push({ id, pos }); }
+  });
+
+  lists.sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0));
+  renderTabs();
+  await Promise.all(updates.map(u => db.from('lists').update({ pos:u.pos }).eq('id', u.id)));
 }
 
 function renderItems(){
@@ -665,7 +806,8 @@ async function selectList(id){
 }
 
 async function addList(name){
-  const { data } = await db.from('lists').insert({ name }).select().single();
+  const maxPos = lists.length ? Math.max(...lists.map(l => l.pos ?? 0)) : 0;
+  const { data } = await db.from('lists').insert({ name, pos: maxPos + 1000 }).select().single();
   if (data){ lists.push(data); await selectList(data.id); }
 }
 function newList(){
@@ -1025,6 +1167,7 @@ $('#menuBtn').onclick = () => {
       <button class="act" data-a="new">Neue Liste</button>
       <button class="act danger" data-a="delete">Liste löschen</button>
       <button class="act danger" data-a="signout">Abmelden</button>
+      <p class="hint">Listen umsortieren: Reiter oben lange gedrückt halten und ziehen.</p>
       <button class="close" data-a="close">Schließen</button>
     </div>`;
 
@@ -1052,10 +1195,13 @@ $('#menuBtn').onclick = () => {
     if (a === 'new') newList();
     if (a === 'delete'){
       if (lists.length < 2){ toast('Die letzte Liste bleibt'); return; }
-      if (!confirm(`„${cur.name}" mit allen Einträgen löschen?`)) return;
+      const n = items.length;
+      const was = n ? `${n} ${n === 1 ? 'Eintrag' : 'Einträge'}` : 'keine Einträge';
+      if (!confirm(`„${cur.name}“ löschen?\n\nDie Liste enthält ${was}. Das lässt sich nicht rückgängig machen.`)) return;
       await db.from('lists').delete().eq('id', activeId);
       lists = lists.filter(l => l.id !== activeId);
       await selectList(lists[0].id);
+      toast(`„${cur.name}“ gelöscht`);
     }
     if (a === 'signout'){ await db.auth.signOut(); location.reload(); }
   };
