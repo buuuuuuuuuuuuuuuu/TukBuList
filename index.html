@@ -117,7 +117,14 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 .iconbtn:active{background:var(--line)}
 .iconbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
-#tabs{display:flex;gap:8px;padding:4px 18px 12px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+/* TABS - liegen jetzt unten im composer, ueber dem eingabefeld */
+#tabs{
+  display:flex;gap:8px;
+  padding:0 0 10px;
+  overflow-x:auto;flex-shrink:0;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
 #tabs::-webkit-scrollbar{display:none}
 .tab{
   padding:7px 15px;border-radius:100px;white-space:nowrap;font-size:14px;font-weight:600;
@@ -168,6 +175,30 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
   pointer-events:none;
 }
 .slot.sliding .trash{opacity:1;pointer-events:auto}
+.slot.sliding-right .trash{opacity:0;pointer-events:none}
+
+/* der blaue grund fuers verschieben, liegt links darunter */
+.move{
+  position:absolute;inset:0;
+  background:#4a90d9;
+  border-radius:100px;
+  display:flex;align-items:center;justify-content:flex-start;
+  padding-left:6px;
+  opacity:0;
+  pointer-events:none;
+}
+.slot.sliding-right .move{opacity:1;pointer-events:auto}
+.move button{
+  height:100%;padding:0 20px;
+  border-radius:100px;
+  color:#fff;font-size:15.5px;font-weight:700;
+  display:flex;align-items:center;gap:7px;
+  opacity:0;transform:translateX(-8px);
+  transition:opacity .18s ease, transform .18s ease;
+}
+.move.armed button{opacity:1;transform:none}
+.move button:active{background:rgba(0,0,0,.16)}
+.move svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .trash button{
   height:100%;padding:0 22px;
   border-radius:100px;
@@ -354,6 +385,15 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 #sheet .act{width:100%;text-align:left;padding:15px 4px;font-size:16px;border-bottom:1px solid var(--line)}
 #sheet .act:last-of-type{border-bottom:0}
 #sheet .act.danger{color:#e0554e}
+
+/* zeilen in der "verschieben nach"-auswahl */
+#sheet .act.listrow{
+  display:flex;align-items:center;gap:11px;
+}
+#sheet .swatch{
+  width:14px;height:14px;border-radius:50%;
+  flex-shrink:0;
+}
 #sheet .hint{
   margin:14px 4px 0;padding:0;
   font-size:13px;line-height:1.45;
@@ -395,8 +435,6 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 
   <div id="palette" class="hide"></div>
 
-  <div id="tabs"></div>
-
   <div id="bar">
     <div class="seg">
       <button data-sort="pos" class="on">Eigene</button>
@@ -429,6 +467,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
       <button id="reloadBtn">Neu laden</button>
     </div>
     <div id="suggest"></div>
+    <div id="tabs"></div>
     <div class="bottom">
       <input id="entry" placeholder="Was fehlt?" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done">
       <button id="addBtn" aria-label="Hinzufügen"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -440,7 +479,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const VERSION = '1.9';
+const VERSION = '2.0';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -651,6 +690,59 @@ function renderTabs(){
   }
 }
 
+/* ---------- item in eine andere liste verschieben ---------- */
+function askMove(it){
+  const ziele = lists.filter(l => l.id !== activeId);
+  if (!ziele.length){ toast('Keine andere Liste da'); closeSwipe(); return; }
+
+  const sheet = document.createElement('div');
+  sheet.id = 'sheet';
+  sheet.innerHTML = `
+    <div class="panel">
+      <h2>„${esc(it.name)}“ verschieben nach</h2>
+      ${ziele.map(l => `
+        <button class="act listrow" data-id="${l.id}">
+          <span class="swatch" style="background:${colorOf(l)}"></span>
+          ${esc(l.name)}
+        </button>`).join('')}
+      <button class="close" data-a="close">Abbrechen</button>
+    </div>`;
+
+  sheet.onclick = async e => {
+    const btn = e.target.closest('[data-id]');
+    if (!btn && e.target !== sheet && !e.target.closest('[data-a="close"]')) return;
+    sheet.remove();
+    if (!btn) { closeSwipe(); return; }
+
+    const ziel = lists.find(l => l.id === btn.dataset.id);
+    if (ziel) await moveItem(it, ziel);
+  };
+  document.body.append(sheet);
+}
+
+async function moveItem(it, ziel){
+  closeSwipe();
+
+  // ans ende der zielliste haengen
+  const { data: zielItems } = await db.from('items').select('pos').eq('list_id', ziel.id);
+  const maxPos = (zielItems || []).reduce((m, r) => Math.max(m, r.pos ?? 0), 0);
+
+  items = items.filter(i => i.id !== it.id);
+  renderItems();
+
+  const { error } = await db.from('items')
+    .update({ list_id: ziel.id, pos: maxPos + 1000 })
+    .eq('id', it.id);
+
+  if (error){                       // fehlgeschlagen -> item zurueckholen
+    items.push(it);
+    renderItems();
+    toast('Verschieben fehlgeschlagen');
+    return;
+  }
+  toast(`„${it.name}“ → ${ziel.name}`);
+}
+
 /* ---------- farbe der liste waehlen ---------- */
 const dotBtn = $('#dotBtn');
 const palette = $('#palette');
@@ -855,7 +947,7 @@ function rowEl(it, color){
   slot.className = 'slot';
   slot.dataset.id = it.id;
 
-  // roter grund mit loesch-knopf, liegt unter der pill
+  // roter grund mit loesch-knopf, liegt unter der pill (nach links wischen)
   const trash = document.createElement('div');
   trash.className = 'trash';
   const del = document.createElement('button');
@@ -863,6 +955,15 @@ function rowEl(it, color){
   del.onclick = e => { e.stopPropagation(); removeItem(it, slot); };
   trash.append(del);
   slot.append(trash);
+
+  // blauer grund mit verschieben-knopf (nach rechts wischen)
+  const move = document.createElement('div');
+  move.className = 'move';
+  const mv = document.createElement('button');
+  mv.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 12h13M13 6l6 6-6 6"/></svg><span>Verschieben</span>';
+  mv.onclick = e => { e.stopPropagation(); askMove(it); };
+  move.append(mv);
+  slot.append(move);
 
   const row = document.createElement('div');
   row.className = 'row' + (it.done ? ' done' : '');
@@ -904,8 +1005,8 @@ function rowEl(it, color){
   grip.addEventListener('pointerdown', e => beginDrag(e, slot, it));
   row.append(grip);
 
-  // nach links wischen -> loeschbereich freilegen
-  row.addEventListener('pointerdown', e => beginSwipe(e, row, trash));
+  // wischen: links -> loeschen, rechts -> verschieben
+  row.addEventListener('pointerdown', e => beginSwipe(e, row, trash, move));
 
   slot.append(row);
   return slot;
@@ -1046,9 +1147,10 @@ entry.oninput = () => {
 entry.onkeydown = e => { if (e.key === 'Enter') addItem(entry.value); };
 $('#addBtn').onclick = () => addItem(entry.value);
 
-/* ---------- nach links wischen zum löschen ---------- */
-const SNAP = 116;          // wie weit die zeile einrastet (breite des löschknopfs)
-const ARM  = 70;           // ab hier rastet sie ein statt zurückzufedern
+/* ---------- wischen: links = löschen, rechts = verschieben ---------- */
+const SNAP  = 116;         // wie weit die zeile nach links einrastet
+const SNAPR = 150;         // nach rechts (der knopf ist breiter)
+const ARM   = 70;          // ab hier rastet sie ein statt zurückzufedern
 
 function closeSwipe(){
   if (!openRow) return;
@@ -1056,21 +1158,29 @@ function closeSwipe(){
   const slot = row.parentElement;
   row.style.transform = '';
   slot?.querySelector('.trash')?.classList.remove('armed');
-  setTimeout(() => slot?.classList.remove('sliding'), 280);
+  slot?.querySelector('.move')?.classList.remove('armed');
+  setTimeout(() => slot?.classList.remove('sliding', 'sliding-right'), 280);
   openRow = null;
 }
 
-function beginSwipe(e, row, trash){
+function beginSwipe(e, row, trash, move){
   if (drag) return;                       // drag hat vorrang
   if (e.target.closest('.grip')) return;  // der griff gehört dem drag
 
   // eine andere zeile ist offen -> erst die schließen, sonst nichts
   if (openRow && openRow !== row){ closeSwipe(); return; }
 
+  // schon offen? dann von dort weiterziehen
+  let base = 0;
+  if (openRow === row){
+    const t = row.style.transform.match(/-?[\d.]+/);
+    base = t ? parseFloat(t[0]) : 0;
+  }
+
   swipe = {
-    row, trash,
+    row, trash, move,
     x0: e.clientX, y0: e.clientY,
-    base: openRow === row ? -SNAP : 0,    // schon offen? von dort weiterziehen
+    base,
     axis: null,                           // 'x' | 'y' | null (noch unklar)
     dx: 0
   };
@@ -1083,7 +1193,8 @@ function beginSwipe(e, row, trash){
 
 function onSwipe(e){
   if (!swipe) return;
-  const { row, trash } = swipe;
+  const { row, trash, move } = swipe;
+  const slot = row.parentElement;
   const dx = e.clientX - swipe.x0;
   const dy = e.clientY - swipe.y0;
 
@@ -1091,10 +1202,7 @@ function onSwipe(e){
   if (!swipe.axis){
     if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;   // noch zu wenig bewegung
     swipe.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-    if (swipe.axis === 'x'){
-      row.classList.add('swiping');
-      row.parentElement.classList.add('sliding');        // roten grund einblenden
-    }
+    if (swipe.axis === 'x') row.classList.add('swiping');
   }
 
   // vertikal -> das ist scrollen, finger weg
@@ -1103,19 +1211,34 @@ function onSwipe(e){
   e.preventDefault();
   row._moved = true;                       // klick unterdrücken
 
-  // nur nach links, mit gummiband am ende
   let x = swipe.base + dx;
-  if (x > 0) x = 0;
-  if (x < -SNAP) x = -SNAP - (Math.abs(x) - SNAP) * 0.25;
+
+  // richtung bestimmt, welcher grund sichtbar wird
+  if (x < 0){
+    slot.classList.add('sliding');
+    slot.classList.remove('sliding-right');
+    if (x < -SNAP) x = -SNAP - (Math.abs(x) - SNAP) * 0.25;   // gummiband
+    trash.classList.toggle('armed', x < -ARM);
+    move.classList.remove('armed');
+  } else if (x > 0){
+    // rechts nur, wenn es ueberhaupt eine andere liste gibt
+    if (lists.length < 2){ x = 0; }
+    else {
+      slot.classList.add('sliding-right');
+      slot.classList.remove('sliding');
+      if (x > SNAPR) x = SNAPR + (x - SNAPR) * 0.25;
+      move.classList.toggle('armed', x > ARM);
+      trash.classList.remove('armed');
+    }
+  }
 
   swipe.dx = x;
   row.style.transform = `translateX(${x}px)`;
-  trash.classList.toggle('armed', x < -ARM);
 }
 
 function endSwipe(){
   if (!swipe) return;
-  const { row, trash, dx, axis } = swipe;
+  const { row, trash, move, dx, axis } = swipe;
   const slot = row.parentElement;
 
   document.removeEventListener('pointermove', onSwipe);
@@ -1126,22 +1249,33 @@ function endSwipe(){
   swipe = null;
 
   if (axis !== 'x'){
-    slot.classList.remove('sliding');
+    slot.classList.remove('sliding', 'sliding-right');
     row._moved = false;
     return;
   }
 
-  // weit genug -> einrasten und den löschknopf zeigen (das ist die "bestätigung")
+  // weit genug nach links -> löschknopf zeigen (das ist die "bestätigung")
   if (dx < -ARM){
     row.style.transform = `translateX(${-SNAP}px)`;
     trash.classList.add('armed');
     openRow = row;
     navigator.vibrate?.(8);
-  } else {
+  }
+  // weit genug nach rechts -> verschieben-knopf zeigen
+  else if (dx > ARM){
+    row.style.transform = `translateX(${SNAPR}px)`;
+    move.classList.add('armed');
+    openRow = row;
+    navigator.vibrate?.(8);
+  }
+  // zu wenig -> zurückfedern
+  else {
     row.style.transform = '';
     trash.classList.remove('armed');
-    // roten grund erst ausblenden, wenn die pille wieder drüber liegt
-    setTimeout(() => { if (openRow !== row) slot.classList.remove('sliding'); }, 280);
+    move.classList.remove('armed');
+    setTimeout(() => {
+      if (openRow !== row) slot.classList.remove('sliding', 'sliding-right');
+    }, 280);
     if (openRow === row) openRow = null;
   }
 
