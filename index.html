@@ -69,7 +69,50 @@ input{background:none;border:0;outline:0}
 #app{display:flex;flex-direction:column;height:100%;height:100dvh}
 header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 #listName{font-size:27px;font-weight:700;letter-spacing:-.03em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:8px}
-#listName .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+
+/* der farbpunkt: klein, aber mit grosser antippflaeche drumherum */
+#listName .dot{
+  width:11px;height:11px;border-radius:50%;flex-shrink:0;
+  position:relative;
+  transition:transform .2s cubic-bezier(.3,1.4,.5,1);
+}
+#listName .dot::after{          /* unsichtbare, grosszuegige trefferflaeche */
+  content:'';position:absolute;
+  inset:-13px;
+  border-radius:50%;
+}
+#listName .dot:active{transform:scale(.8)}
+#listName .dot.open{transform:scale(1.5)}
+
+/* die farbauswahl */
+#palette{
+  display:flex;gap:10px;
+  padding:2px 18px 14px;
+  flex-shrink:0;
+  animation:drop .22s cubic-bezier(.2,.9,.3,1);
+}
+@keyframes drop{from{opacity:0;transform:translateY(-8px)}}
+#palette button{
+  width:34px;height:34px;border-radius:50%;
+  flex-shrink:0;
+  border:2px solid transparent;
+  transition:transform .15s cubic-bezier(.3,1.4,.5,1), border-color .15s;
+  position:relative;
+}
+#palette button:active{transform:scale(.85)}
+#palette button.on{
+  border-color:var(--ink);
+  transform:scale(1.1);
+}
+#palette button.on::after{      /* haekchen in der gewaehlten farbe */
+  content:'';position:absolute;
+  left:50%;top:47%;
+  width:5px;height:9px;
+  margin:-6px 0 0 -3px;
+  border:solid var(--pill-ink);
+  border-width:0 2.4px 2.4px 0;
+  transform:rotate(42deg);
+}
 .iconbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;color:var(--ink-soft);border:1px solid var(--line);transition:background .15s}
 .iconbtn:active{background:var(--line)}
 .iconbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -273,6 +316,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
   color:var(--ink-faint);
   font-variant-numeric:tabular-nums;
 }
+#verName::after{content:'·';margin-left:6px;opacity:.6}
 #verDot{
   width:5px;height:5px;border-radius:50%;
   background:var(--ink-faint);
@@ -339,12 +383,17 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 
 <div id="app" class="hide">
   <header>
-    <div id="listName"><span class="dot"></span><span id="listNameText">…</span></div>
+    <div id="listName">
+      <button class="dot" id="dotBtn" aria-label="Farbe wählen"></button>
+      <span id="listNameText">…</span>
+    </div>
     <button class="iconbtn" id="themeBtn" aria-label="Darstellung wechseln"><svg id="themeIcon" viewBox="0 0 24 24"></svg></button>
     <button class="iconbtn" id="menuBtn" aria-label="Menü">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></svg>
     </button>
   </header>
+
+  <div id="palette" class="hide"></div>
 
   <div id="tabs"></div>
 
@@ -384,14 +433,14 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
       <input id="entry" placeholder="Was fehlt?" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done">
       <button id="addBtn" aria-label="Hinzufügen"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
-    <div id="ver"><span id="verNum">…</span><span id="verDot"></span></div>
+    <div id="ver"><span id="verName">List by bu</span><span id="verNum">…</span><span id="verDot"></span></div>
   </div>
 </div>
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const VERSION = '1.8';
+const VERSION = '1.9';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -402,6 +451,12 @@ const hueOf = s => {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return PASTELS[h % PASTELS.length];
+};
+
+/* farbe einer liste: selbst gewählt, sonst aus dem namen abgeleitet */
+const colorOf = l => {
+  if (!l) return PASTELS[0];
+  return PASTELS.includes(l.color) ? l.color : hueOf(l.name);
 };
 
 /* erledigte items: die listenfarbe Richtung hintergrund ausbleichen.
@@ -578,7 +633,7 @@ function renderTabs(){
     b.className = 'tab' + (l.id === activeId ? ' on' : '');
     b.textContent = l.name;
     b.dataset.id = l.id;
-    if (l.id === activeId) b.style.background = hueOf(l.name);
+    if (l.id === activeId) b.style.background = colorOf(l);
     b.onclick = () => { if (!b._moved) selectList(l.id); };
     b.addEventListener('pointerdown', e => armTabDrag(e, b));
     tabs.append(b);
@@ -592,9 +647,58 @@ function renderTabs(){
   const cur = lists.find(l => l.id === activeId);
   if (cur){
     $('#listNameText').textContent = cur.name;
-    $('#listName .dot').style.background = hueOf(cur.name);
+    $('#listName .dot').style.background = colorOf(cur);
   }
 }
+
+/* ---------- farbe der liste waehlen ---------- */
+const dotBtn = $('#dotBtn');
+const palette = $('#palette');
+
+dotBtn.onclick = e => {
+  e.stopPropagation();
+  palette.classList.contains('hide') ? openPalette() : closePalette();
+};
+
+function openPalette(){
+  const cur = lists.find(l => l.id === activeId);
+  if (!cur) return;
+
+  const active = colorOf(cur);
+  palette.innerHTML = '';
+
+  PASTELS.forEach(c => {
+    const b = document.createElement('button');
+    b.style.background = c;
+    b.setAttribute('aria-label', 'Farbe');
+    if (c === active) b.classList.add('on');
+    b.onclick = e => { e.stopPropagation(); pickColor(cur, c); };
+    palette.append(b);
+  });
+
+  palette.classList.remove('hide');
+  dotBtn.classList.add('open');
+}
+
+function closePalette(){
+  palette.classList.add('hide');
+  dotBtn.classList.remove('open');
+}
+
+async function pickColor(list, color){
+  list.color = color;
+  closePalette();
+  renderTabs();
+  renderItems();                 // items tragen die listenfarbe
+  await db.from('lists').update({ color }).eq('id', list.id);
+}
+
+// woanders hintippen schliesst die palette
+document.addEventListener('pointerdown', e => {
+  if (palette.classList.contains('hide')) return;
+  if (e.target.closest('#palette') || e.target.closest('#dotBtn')) return;
+  closePalette();
+});
 
 /* ---------- listen umsortieren: lange druecken, dann ziehen ---------- */
 const HOLD = 380;          // wie lange halten, bis der drag startet
@@ -632,14 +736,15 @@ function beginTabDrag(x0, tab){
   const index = order.indexOf(tab);
   if (index < 0) return;
 
-  const rect = tab.getBoundingClientRect();
+  // die mitten aller tabs merken - die breiten sind unterschiedlich,
+  // eine feste schrittweite waere falsch
+  const mids = order.map(el => {
+    const r = el.getBoundingClientRect();
+    return r.left + r.width / 2;
+  });
+  const width = tab.getBoundingClientRect().width + 8;   // vor dem scale gemessen
 
-  tabDrag = {
-    tab, bar, order, index,
-    x0,
-    width: rect.width + 8,     // + gap
-    shift: 0
-  };
+  tabDrag = { tab, bar, order, index, mids, width, x0, shift: 0 };
 
   tab.classList.add('lift');
   tab._moved = true;
@@ -654,12 +759,21 @@ function onTabDrag(e){
   if (!tabDrag) return;
   e.preventDefault();
 
-  const { tab, order, index, width } = tabDrag;
+  const { tab, order, index, mids, width } = tabDrag;
   const dx = e.clientX - tabDrag.x0;
   tab.style.transform = `translateX(${dx}px) scale(1.06)`;
 
-  let shift = Math.round(dx / width);
-  shift = Math.max(-index, Math.min(order.length - 1 - index, shift));
+  // wo liegt die mitte des gezogenen tabs jetzt?
+  const now = mids[index] + dx;
+
+  // auf welchem platz landet er? der, dessen mitte am naechsten liegt
+  let target = index, best = Infinity;
+  mids.forEach((m, i) => {
+    const d = Math.abs(m - now);
+    if (d < best){ best = d; target = i; }
+  });
+
+  const shift = target - index;
 
   if (shift !== tabDrag.shift){
     tabDrag.shift = shift;
@@ -717,7 +831,7 @@ function renderItems(){
   openRow = null;              // das DOM wird neu gebaut, alte zeiger sind wertlos
   box.innerHTML = '';
   const cur = lists.find(l => l.id === activeId);
-  const color = cur ? hueOf(cur.name) : PASTELS[0];
+  const color = colorOf(cur);
   const rows = ordered();
 
   if (!rows.length){
@@ -801,6 +915,7 @@ function rowEl(it, color){
 async function selectList(id){
   activeId = id;
   localStorage.setItem('activeList', id);
+  closePalette();
   renderTabs();
   await loadItems();
 }
