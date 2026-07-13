@@ -1,7 +1,7 @@
-const VERSION = '2.0';
+const VERSION = '2.1';
 const CACHE = 'liste-v' + VERSION;
 
-const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-512-maskable.png'];
+const SHELL = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png', './icon-512-maskable.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
