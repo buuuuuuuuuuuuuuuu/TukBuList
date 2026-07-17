@@ -1,4 +1,4 @@
-const VERSION = '2.2';
+const VERSION = '2.4';
 const CACHE = 'liste-v' + VERSION;
 
 const SHELL = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png', './icon-512-maskable.png'];
@@ -20,8 +20,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Supabase: niemals cachen, Daten muessen frisch sein
+  // Supabase & Open Food Facts: niemals cachen, Daten muessen frisch sein
   if (url.hostname.endsWith('supabase.co')) return;
+  if (url.hostname.endsWith('openfoodfacts.org')) return;
 
   // version.json: niemals cachen, sonst findet der Update-Check nie ein Update
   if (url.pathname.endsWith('version.json')) {

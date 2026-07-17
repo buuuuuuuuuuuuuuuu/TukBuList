@@ -402,6 +402,79 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 #sheet .close{width:100%;margin-top:14px;padding:15px;border-radius:var(--radius);background:var(--bg);font-weight:600;font-size:16px}
 
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:80;background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:100px;font-size:14.5px;font-weight:600;box-shadow:var(--shadow);animation:pop .25s ease;pointer-events:none}
+
+/* SCANNER */
+#scanBtn{
+  width:46px;height:46px;border-radius:50%;flex-shrink:0;
+  display:grid;place-items:center;
+  color:var(--ink-soft);border:1.5px solid var(--line);
+  transition:transform .15s, background .15s;
+}
+#scanBtn:active{transform:scale(.9);background:var(--line)}
+#scanBtn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+
+#scan{
+  position:fixed;inset:0;z-index:90;
+  background:#000;
+  display:flex;align-items:center;justify-content:center;
+}
+#scanVideo{
+  position:absolute;inset:0;
+  width:100%;height:100%;object-fit:cover;
+}
+#scan .frame{
+  position:relative;z-index:2;
+  width:min(78vw, 340px);height:150px;
+  border-radius:18px;
+  box-shadow:0 0 0 200vmax rgba(0,0,0,.45);   /* abdunkeln drumherum */
+  outline:2.5px solid rgba(255,255,255,.9);
+}
+#scan .hint{
+  position:absolute;z-index:2;
+  bottom:calc(env(safe-area-inset-bottom) + 46px);
+  left:0;right:0;text-align:center;
+  color:#fff;font-size:15px;font-weight:600;
+  text-shadow:0 1px 4px rgba(0,0,0,.6);
+  margin:0;
+}
+#scanClose{
+  position:absolute;z-index:2;
+  top:calc(env(safe-area-inset-top) + 14px);right:16px;
+  width:42px;height:42px;border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(0,0,0,.5);color:#fff;
+}
+#scanClose svg{width:20px;height:20px;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;fill:none}
+
+/* NAMENS-DIALOG */
+#scanAsk{
+  position:fixed;inset:0;z-index:95;
+  background:rgba(0,0,0,.5);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;
+  padding:28px;
+  animation:fade .2s ease;
+}
+#scanAsk .panel{
+  width:100%;max-width:340px;
+  background:var(--surface);
+  border-radius:22px;
+  padding:24px 20px;
+  animation:pop .25s cubic-bezier(.3,1.4,.5,1);
+}
+#scanAsk h2{margin:0 0 8px;font-size:19px;font-weight:700;letter-spacing:-.02em}
+#scanAsk p{margin:0 0 16px;font-size:14.5px;line-height:1.5;color:var(--ink-soft)}
+#scanAsk b{font-variant-numeric:tabular-nums;color:var(--ink)}
+#scanAsk .field{width:100%;margin-bottom:12px}
+#scanAsk #askSave{
+  width:100%;padding:14px;border-radius:var(--radius);
+  background:var(--ink);color:var(--bg);
+  font-weight:700;font-size:15.5px;
+}
+#scanAsk #askSave:active{opacity:.7}
+#scanAsk #askSkip{
+  width:100%;margin-top:8px;padding:13px;
+  color:var(--ink-soft);font-size:15px;font-weight:600;
+}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
 </head>
@@ -470,16 +543,38 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
     <div id="tabs"></div>
     <div class="bottom">
       <input id="entry" placeholder="Was fehlt?" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done">
+      <button id="scanBtn" aria-label="Barcode scannen"><svg viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h.01M11 12h2M17 12h.01" stroke-width="2.6"/></svg></button>
       <button id="addBtn" aria-label="Hinzufügen"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
     <div id="ver"><span id="verName">List by bu</span><span id="verNum">…</span><span id="verDot"></span></div>
   </div>
 </div>
 
+<!-- BARCODE-SCANNER -->
+<div id="scan" class="hide">
+  <video id="scanVideo" autoplay playsinline muted></video>
+  <div class="frame"></div>
+  <p class="hint">Barcode in den Rahmen halten</p>
+  <button id="scanClose" aria-label="Schließen">
+    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</div>
+
+<!-- UNBEKANNTER CODE: NAME ERFRAGEN -->
+<div id="scanAsk" class="hide">
+  <div class="panel">
+    <h2>Unbekanntes Produkt</h2>
+    <p>Der Code <b id="askCode"></b> ist noch nicht bekannt.<br>Wie heißt das Produkt?</p>
+    <input class="field" id="askName" placeholder="z.B. Hafermilch" autocomplete="off">
+    <button id="askSave">Speichern &amp; hinzufügen</button>
+    <button id="askSkip">Überspringen</button>
+  </div>
+</div>
+
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const VERSION = '2.2';
+const VERSION = '2.4';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -523,6 +618,7 @@ let swipe = null;          // aktiver wisch-vorgang
 let tabDrag = null;        // aktives umsortieren der listen
 let holdTimer = null;      // long-press-timer fuer den tab-drag
 let needsReload = false;   // realtime-update kam waehrend einer geste an
+let appStarted = false;    // erst nach dem login schlafen/aufwachen behandeln
 
 /* ---------- theme ---------- */
 const SUN = '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/>';
@@ -563,6 +659,7 @@ db.auth.getSession().then(({ data }) => { if (data.session) start(); });
 async function start(){
   $('#login').classList.add('hide');
   $('#app').classList.remove('hide');
+  appStarted = true;
   const ok = await loadLists();
   if (ok) subscribe();
 }
@@ -641,9 +738,22 @@ $('#offRetry').onclick = async () => {
 };
 
 /* beim zurückkehren in die app: still im hintergrund nachfassen */
+/* ---------- schlafen & aufwachen ----------
+   im hintergrund haelt der realtime-socket das funkmodul mit heartbeats wach,
+   bis das OS die seite einfriert. also: beim verlassen aktiv trennen,
+   beim zurueckkehren neu verbinden UND die daten frisch laden - der socket
+   war tot, aenderungen der anderen person waeren sonst unsichtbar. */
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) return;
-  if (!$('#offline').classList.contains('hide')) loadLists().then(ok => { if (ok) subscribe(); });
+  if (!appStarted) return;
+
+  if (document.hidden){
+    closeScanner();                       // kamera nie im hintergrund laufen lassen
+    if (channel){ db.removeChannel(channel); channel = null; }
+    return;
+  }
+
+  // zurueck in der app: daten nachziehen, dann wieder lauschen
+  loadLists().then(ok => { if (ok) subscribe(); });
 });
 
 function subscribe(){
@@ -771,6 +881,158 @@ async function moveItem(it, ziel){
   }
   toast(`„${it.name}“ → ${ziel.name}`);
 }
+
+/* ---------- barcode-scanner ----------
+   erkennung: nativer BarcodeDetector (android chrome), sonst ZXing -
+   das wird erst beim ersten oeffnen nachgeladen, nicht beim app-start.
+   lookup: 1) eigene barcodes-tabelle  2) open food facts
+   unbekannte codes werden einmal erfragt und fuer immer gemerkt. */
+let scanner = null;    // { stream, stop, paused, seen:Map }
+let zxingReader = null;
+
+$('#scanBtn').onclick = openScanner;
+$('#scanClose').onclick = closeScanner;
+
+async function openScanner(){
+  if (scanner) return;
+  closeSwipe(); closePalette();
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 } },
+      audio: false
+    });
+  } catch {
+    toast('Kein Kamerazugriff');
+    return;
+  }
+
+  const video = $('#scanVideo');
+  video.srcObject = stream;
+  $('#scan').classList.remove('hide');
+  scanner = { stream, stop: null, paused: false, seen: new Map() };
+
+  try { await video.play(); } catch {}
+
+  // erkennungs-engine starten
+  if ('BarcodeDetector' in window){
+    const det = new BarcodeDetector({
+      formats: ['ean_13','ean_8','upc_a','upc_e','code_128']
+    });
+    const iv = setInterval(async () => {
+      if (!scanner || scanner.paused) return;
+      try {
+        const codes = await det.detect(video);
+        if (codes.length) handleCode(codes[0].rawValue);
+      } catch {}
+    }, 300);
+    scanner.stop = () => clearInterval(iv);
+  } else {
+    // iOS: ZXing nachladen (einmalig)
+    try {
+      if (!zxingReader){
+        const { BrowserMultiFormatReader } = await import('https://esm.sh/@zxing/browser@0.1.5');
+        zxingReader = new BrowserMultiFormatReader();
+      }
+      const controls = await zxingReader.decodeFromVideoElement(video, result => {
+        if (result && scanner && !scanner.paused) handleCode(result.getText());
+      });
+      scanner.stop = () => controls.stop();
+    } catch {
+      toast('Scanner konnte nicht starten');
+      closeScanner();
+    }
+  }
+}
+
+function closeScanner(){
+  if (!scanner) return;
+  scanner.stop?.();
+  scanner.stream.getTracks().forEach(t => t.stop());   // kamera wirklich freigeben
+  $('#scanVideo').srcObject = null;
+  $('#scan').classList.add('hide');
+  $('#scanAsk').classList.add('hide');
+  scanner = null;
+}
+
+async function handleCode(code){
+  if (!scanner || scanner.paused) return;
+  code = String(code).trim();
+  if (!code) return;
+
+  // derselbe code loest waehrend des zielens dauernd aus - 4s ruhe pro code
+  const now = Date.now();
+  const last = scanner.seen.get(code) || 0;
+  if (now - last < 4000) return;
+  scanner.seen.set(code, now);
+
+  navigator.vibrate?.(15);
+  scanner.paused = true;                 // waehrend lookup nichts doppelt erkennen
+
+  const name = await lookupBarcode(code);
+
+  if (name){
+    await addItem(name);
+    toast(`✓ ${name}`);
+    scanner.paused = false;              // weiterscannen fuer den naechsten artikel
+  } else {
+    askName(code);                       // unbekannt -> einmal erfragen
+  }
+}
+
+async function lookupBarcode(code){
+  // 1) haben wir den code schon mal benannt?
+  const { data } = await db.from('barcodes').select('name').eq('code', code);
+  if (data && data[0]?.name) return data[0].name;
+
+  // 2) open food facts
+  try {
+    const r = await fetch(
+      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name_de,product_name`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (r.ok){
+      const j = await r.json();
+      const p = j.product;
+      const name = (p?.product_name_de || p?.product_name || '').trim();
+      if (name){
+        // merken -> naechster scan braucht kein internet-lookup mehr
+        db.from('barcodes').upsert({ code, name }).then(() => {});
+        return name;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+/* unbekannter code: name erfragen und dauerhaft merken */
+function askName(code){
+  $('#askCode').textContent = code;
+  $('#askName').value = '';
+  $('#scanAsk').classList.remove('hide');
+  setTimeout(() => $('#askName').focus(), 250);
+}
+
+$('#askSave').onclick = async () => {
+  const code = $('#askCode').textContent;
+  const name = $('#askName').value.trim();
+  if (!name) return;
+
+  $('#scanAsk').classList.add('hide');
+  const { error } = await db.from('barcodes').upsert({ code, name });
+  if (error){ toast('Speichern fehlgeschlagen'); }
+  await addItem(name);
+  toast(`✓ ${name} gemerkt`);
+  if (scanner) scanner.paused = false;
+};
+
+$('#askSkip').onclick = () => {
+  $('#scanAsk').classList.add('hide');
+  if (scanner) scanner.paused = false;
+};
+
+$('#askName').onkeydown = e => { if (e.key === 'Enter') $('#askSave').click(); };
 
 /* ---------- farbe der liste waehlen ---------- */
 const dotBtn = $('#dotBtn');
@@ -1505,6 +1767,7 @@ let updateReady = false;
 
 async function checkVersion(){
   if (updateReady) return;
+  if (document.hidden) return;   // im hintergrund kein netzwerk wecken
   try {
     // cache-buster: github pages liefert sonst die alte datei aus
     const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
