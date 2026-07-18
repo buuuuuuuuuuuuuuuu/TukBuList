@@ -62,3 +62,21 @@ Punkt unten: gruen = aktuell, orange blinkend = Update da, grau = Check nicht mo
 
 Eigener Screen mit Link zum Supabase-Dashboard. Dort Restore/Resume klicken,
 kurz warten, "Nochmal versuchen" antippen. Es gehen keine Daten verloren.
+
+## Apple Watch (watch.html)
+
+Reduzierte Ansicht fuer Watch-Browser (z.B. ybrowser): Listen wechseln,
+Items sehen und abhaken. Hinzufuegen versteckt hinter kleinem "+".
+Kein Scanner, kein Realtime (Daten laden bei Oeffnen/Aktion/Reload-Knopf),
+kein Service Worker. Nutzt die Supabase-REST-API direkt (ohne supabase-js).
+
+Lesezeichen-URL mit Zugangsdaten im Hash:
+
+    https://DEINE-SEITE/watch.html#u=EMAIL&p=PASSWORT
+
+Der Hash verlaesst den Browser nicht (wird nie an den Server gesendet),
+steht aber lesbar im Lesezeichen. Empfehlung: eigenes drittes Supabase-Konto
+nur fuer die Watch anlegen. Enthaelt das Passwort & # oder %, diese Zeichen
+URL-codieren (%26, %23, %25).
+
+watch.html haengt NICHT am Version-Tracker und ist nicht in der SW-Shell.
