@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<!-- ohne dieses tag rendert watchOS die seite als geschrumpfte desktopseite -->
+<meta name="disabled-adaptations" content="watch">
+<meta name="theme-color" content="#16151a">
+<title>Liste</title>
+<style>
+/* immer dunkel - das watch-display ist schwarz */
+:root{
+  --bg:#16151a; --surface:#201f26; --line:#302e38;
+  --ink:#f2f0ee; --ink-soft:#8d8899; --pill-ink:#1a1820;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font:400 15px/1.35 -apple-system,system-ui,sans-serif;
+  padding:6px 6px 14px;
+}
+button,input{font:inherit;color:inherit;background:none;border:0;padding:0}
+.hide{display:none !important}
+
+/* kopf: aktive liste + neu laden */
+#head{display:flex;align-items:center;gap:6px;margin:2px 2px 8px}
+#title{flex:1;min-width:0;font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px}
+#title .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#reload{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--ink-soft);border:1px solid var(--line);font-size:15px}
+#reload:active{background:var(--line)}
+#reload.spin{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#count{font-size:11.5px;color:var(--ink-soft);margin:0 2px 6px}
+
+/* listen-tabs: gross genug fuer den finger */
+#tabs{display:flex;gap:6px;overflow-x:auto;margin:0 -6px 10px;padding:0 6px 4px;-webkit-overflow-scrolling:touch}
+#tabs::-webkit-scrollbar{display:none}
+.tab{
+  padding:8px 13px;border-radius:100px;white-space:nowrap;
+  font-size:13.5px;font-weight:600;flex-shrink:0;
+  border:1.5px solid var(--line);color:var(--ink-soft);
+}
+.tab.on{color:var(--pill-ink);border-color:transparent}
+
+/* items: eine grosse zeile = ein tap-ziel */
+.row{
+  display:flex;align-items:center;gap:8px;
+  width:100%;text-align:left;
+  border-radius:12px;margin-bottom:6px;
+  padding:12px 12px;
+  color:var(--pill-ink);
+  font-size:15px;font-weight:600;
+}
+.row:active{opacity:.7}
+.row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .q{font-size:12.5px;font-weight:800;opacity:.6;flex-shrink:0}
+.row.done{color:var(--ink-soft);font-weight:500}
+.row.done .nm{opacity:.75}
+
+#empty{color:var(--ink-soft);font-size:13.5px;text-align:center;padding:26px 8px}
+
+/* hinzufuegen: bewusst klein und ganz unten */
+#addWrap{margin-top:12px;text-align:center}
+#addBtn{color:var(--ink-soft);font-size:12.5px;padding:8px 14px;border:1px dashed var(--line);border-radius:100px}
+#addForm{display:flex;gap:6px;margin-top:8px}
+#addName{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;outline:0}
+#addOk{padding:9px 13px;border-radius:10px;background:var(--ink);color:var(--bg);font-weight:700;font-size:13.5px}
+
+/* fehler / login-hinweis */
+#msg{padding:20px 8px;text-align:center}
+#msg h1{font-size:16px;margin:0 0 8px}
+#msg p{font-size:12.5px;line-height:1.5;color:var(--ink-soft);margin:0 0 12px;word-break:break-all}
+#msg button{padding:10px 16px;border-radius:10px;background:var(--ink);color:var(--bg);font-weight:700;font-size:14px}
+
+#toast{
+  position:fixed;left:50%;bottom:12px;transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);
+  padding:7px 14px;border-radius:100px;
+  font-size:12.5px;font-weight:600;pointer-events:none;
+}
+</style>
+</head>
+<body>
+
+<div id="msg" class="hide">
+  <h1 id="msgTitle">…</h1>
+  <p id="msgText"></p>
+  <button id="msgRetry">Nochmal versuchen</button>
+</div>
+
+<div id="app" class="hide">
+  <div id="head">
+    <div id="title"><span class="dot"></span><span id="titleText">…</span></div>
+    <button id="reload" aria-label="Neu laden">↻</button>
+  </div>
+  <div id="tabs"></div>
+  <div id="count"></div>
+  <div id="items"></div>
+  <div id="addWrap">
+    <button id="addBtn">＋ Hinzufügen</button>
+    <div id="addForm" class="hide">
+      <input id="addName" placeholder="Name" autocomplete="off" enterkeyhint="done">
+      <button id="addOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* bewusst OHNE supabase-js: die bibliothek ist fuer die watch zu schwer.
+   direkte REST-aufrufe, ein bruchteil der groesse, kein modul-import. */
+const BASE = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
+const KEY  = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
+
+const $ = s => document.querySelector(s);
+const PASTELS = ['#ffd6a5','#bde0fe','#c9f2c7','#ffc8dd','#e0c3fc','#fdffb6','#a0e7e5','#ffb7b2'];
+const hueOf = s => { let h=0; for (let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return PASTELS[h%PASTELS.length]; };
+const colorOf = l => PASTELS.includes(l.color) ? l.color : hueOf(l.name);
+/* erledigte: deckend Richtung oberflaeche absenken (gleiche logik wie in der app) */
+const mix = (hex,t2,t) => { const h=x=>parseInt(hex.slice(x,x+2),16), g=x=>parseInt(t2.slice(x,x+2),16),
+  v=x=>Math.round(h(x)+(g(x)-h(x))*t).toString(16).padStart(2,'0'); return '#'+v(1)+v(3)+v(5); };
+const paleOf = c => mix(c, '#201F26', 0.78);
+
+let token = null, lists = [], items = [], activeId = null, busyRetry = false;
+
+/* ---------- auth: zugangsdaten kommen aus dem bookmark-hash ---------- */
+function creds(){
+  const h = new URLSearchParams(location.hash.slice(1));
+  return { email: h.get('u'), pw: h.get('p') };
+}
+
+async function login(){
+  const { email, pw } = creds();
+  if (!email || !pw){
+    showMsg('Zugangsdaten fehlen',
+      'Lesezeichen so anlegen:\n' + location.origin + location.pathname + '#u=DEINE-MAIL&p=PASSWORT');
+    return false;
+  }
+  const r = await fetch(BASE + '/auth/v1/token?grant_type=password', {
+    method:'POST',
+    headers:{ apikey:KEY, 'Content-Type':'application/json' },
+    body: JSON.stringify({ email, password: pw })
+  });
+  if (!r.ok){
+    showMsg('Anmeldung fehlgeschlagen', 'Stimmen E-Mail und Passwort im Lesezeichen?');
+    return false;
+  }
+  token = (await r.json()).access_token;
+  return true;
+}
+
+/* rest-aufruf; bei abgelaufenem token einmal neu anmelden und wiederholen */
+async function api(path, opts = {}){
+  const r = await fetch(BASE + path, {
+    ...opts,
+    headers: {
+      apikey: KEY,
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {})
+    }
+  });
+  if (r.status === 401 && !busyRetry){
+    busyRetry = true;
+    const ok = await login();
+    busyRetry = false;
+    if (ok) return api(path, opts);
+  }
+  return r;
+}
+
+/* ---------- daten ---------- */
+async function loadAll(){
+  spin(true);
+  try {
+    const rl = await api('/rest/v1/lists?select=*&order=pos.nullslast,created_at');
+    if (!rl.ok) throw 0;
+    lists = await rl.json();
+    if (!lists.length){ showMsg('Keine Listen', 'In der App auf dem Handy eine Liste anlegen.'); return; }
+    if (!lists.some(l => l.id === activeId)) activeId = lists[0].id;
+    await loadItems();
+    hideMsg();
+    render();
+  } catch {
+    showMsg('Keine Verbindung', 'Netz pruefen, dann nochmal versuchen.');
+  } finally {
+    spin(false);
+  }
+}
+
+async function loadItems(){
+  const r = await api('/rest/v1/items?list_id=eq.' + activeId + '&select=*');
+  if (!r.ok) throw 0;
+  items = await r.json();
+}
+
+/* ---------- aktionen ---------- */
+async function toggle(it){
+  it.done = !it.done;               // sofort anzeigen …
+  render();
+  const r = await api('/rest/v1/items?id=eq.' + it.id, {
+    method:'PATCH',
+    headers:{ Prefer:'return=minimal' },
+    body: JSON.stringify({ done: it.done })
+  });
+  if (!r.ok){ it.done = !it.done; render(); toast('Fehler'); }  // … sonst zurueck
+}
+
+async function addItem(name){
+  name = name.trim();
+  if (!name) return;
+  const dupe = items.find(i => i.name.toLowerCase() === name.toLowerCase());
+  if (dupe){
+    if (dupe.done) await toggle(dupe); else toast('Steht schon drauf');
+    return;
+  }
+  const maxPos = items.reduce((m,i) => Math.max(m, i.pos ?? 0), 0);
+  const r = await api('/rest/v1/items', {
+    method:'POST',
+    headers:{ Prefer:'return=representation' },
+    body: JSON.stringify({ list_id: activeId, name, qty:1, pos: maxPos + 1000 })
+  });
+  if (r.ok){ items.push((await r.json())[0]); render(); toast('✓ ' + name); }
+  else toast('Fehler');
+}
+
+/* ---------- render ---------- */
+function render(){
+  const cur = lists.find(l => l.id === activeId);
+  const color = colorOf(cur);
+  $('#titleText').textContent = cur.name;
+  $('#title .dot').style.background = color;
+
+  const tabs = $('#tabs');
+  tabs.innerHTML = '';
+  lists.forEach(l => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (l.id === activeId ? ' on' : '');
+    b.textContent = l.name;
+    if (l.id === activeId) b.style.background = colorOf(l);
+    b.onclick = async () => { activeId = l.id; spin(true); try { await loadItems(); render(); } catch {} spin(false); };
+    tabs.append(b);
+  });
+
+  const box = $('#items');
+  box.innerHTML = '';
+  const rows = [...items].sort((a,b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (a.pos ?? 0) - (b.pos ?? 0);
+  });
+  if (!rows.length) box.innerHTML = '<div id="empty">Nichts drauf.</div>';
+  rows.forEach(it => {
+    const r = document.createElement('button');
+    r.className = 'row' + (it.done ? ' done' : '');
+    r.style.background = it.done ? paleOf(color) : color;
+    r.innerHTML = '<span class="nm"></span>' + ((it.qty || 1) > 1 ? '<span class="q">×' + it.qty + '</span>' : '');
+    r.querySelector('.nm').textContent = it.name;
+    r.onclick = () => toggle(it);
+    box.append(r);
+  });
+
+  const open = items.filter(i => !i.done).length;
+  $('#count').textContent = open ? open + ' offen' : 'alles erledigt';
+}
+
+/* ---------- kleinkram ---------- */
+function spin(on){ $('#reload').classList.toggle('spin', on); }
+function showMsg(t, x){ $('#msgTitle').textContent = t; $('#msgText').textContent = x; $('#msg').classList.remove('hide'); $('#app').classList.add('hide'); }
+function hideMsg(){ $('#msg').classList.add('hide'); $('#app').classList.remove('hide'); }
+let toastTimer;
+function toast(t){
+  document.querySelector('#toast')?.remove();
+  const d = document.createElement('div'); d.id = 'toast'; d.textContent = t;
+  document.body.append(d);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => d.remove(), 1400);
+}
+
+$('#reload').onclick = loadAll;
+$('#msgRetry').onclick = boot;
+$('#addBtn').onclick = () => { $('#addBtn').classList.add('hide'); $('#addForm').classList.remove('hide'); $('#addName').focus(); };
+$('#addOk').onclick = async () => {
+  const v = $('#addName').value;
+  $('#addName').value = '';
+  $('#addForm').classList.add('hide'); $('#addBtn').classList.remove('hide');
+  if (v.trim()) await addItem(v);
+};
+$('#addName').onkeydown = e => { if (e.key === 'Enter') $('#addOk').click(); };
+
+/* zurueck auf der seite -> frisch laden (kein realtime auf der watch) */
+document.addEventListener('visibilitychange', () => { if (!document.hidden && token) loadAll(); });
+
+async function boot(){
+  hideMsg();
+  if (await login()) await loadAll();
+}
+boot();
+</script>
+</body>
+</html>
