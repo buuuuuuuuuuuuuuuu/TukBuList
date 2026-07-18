@@ -1,4 +1,4 @@
-const VERSION = '2.4';
+const VERSION = '2.5';
 const CACHE = 'liste-v' + VERSION;
 
 const SHELL = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png', './icon-512-maskable.png'];

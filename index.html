@@ -401,7 +401,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 }
 #sheet .close{width:100%;margin-top:14px;padding:15px;border-radius:var(--radius);background:var(--bg);font-weight:600;font-size:16px}
 
-.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:80;background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:100px;font-size:14.5px;font-weight:600;box-shadow:var(--shadow);animation:pop .25s ease;pointer-events:none}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:120;background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:100px;font-size:14.5px;font-weight:600;box-shadow:var(--shadow);animation:pop .25s ease;pointer-events:none}
 
 /* SCANNER */
 #scanBtn{
@@ -428,6 +428,21 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
   border-radius:18px;
   box-shadow:0 0 0 200vmax rgba(0,0,0,.45);   /* abdunkeln drumherum */
   outline:2.5px solid rgba(255,255,255,.9);
+  transition:outline-color .15s ease;
+}
+#scan.ok .frame{
+  outline:4px solid #6fdc8c;
+  box-shadow:0 0 0 200vmax rgba(0,0,0,.45), 0 0 24px rgba(111,220,140,.8);
+}
+#scan.ok .hint{color:#6fdc8c}
+#scanManual{
+  position:absolute;z-index:2;
+  bottom:calc(env(safe-area-inset-bottom) + 14px);
+  left:0;right:0;margin:0 auto;
+  width:fit-content;
+  padding:9px 16px;border-radius:100px;
+  background:rgba(0,0,0,.5);color:rgba(255,255,255,.85);
+  font-size:13.5px;font-weight:600;
 }
 #scan .hint{
   position:absolute;z-index:2;
@@ -554,7 +569,8 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 <div id="scan" class="hide">
   <video id="scanVideo" autoplay playsinline muted></video>
   <div class="frame"></div>
-  <p class="hint">Barcode in den Rahmen halten</p>
+  <p class="hint" id="scanHint">Barcode in den Rahmen halten</p>
+  <button id="scanManual">Nummer von Hand eingeben</button>
   <button id="scanClose" aria-label="Schließen">
     <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
   </button>
@@ -574,7 +590,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const VERSION = '2.4';
+const VERSION = '2.5';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -892,6 +908,18 @@ let zxingReader = null;
 
 $('#scanBtn').onclick = openScanner;
 $('#scanClose').onclick = closeScanner;
+$('#scanManual').onclick = () => {
+  if (!scanner) return;
+  scanner.paused = true;
+  const code = prompt('Barcode-Nummer eingeben (Zahlen unter dem Strichcode):');
+  if (code && code.trim()){
+    scanner.seen.delete(code.trim());   // manuelle eingabe umgeht den cooldown
+    scanner.paused = false;
+    handleCode(code.trim());
+  } else {
+    scanner.paused = false;
+  }
+};
 
 async function openScanner(){
   if (scanner) return;
@@ -900,9 +928,16 @@ async function openScanner(){
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 } },
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 1920 }, height: { ideal: 1080 }
+      },
       audio: false
     });
+    // nahfokus anfragen, wo unterstuetzt - barcodes haelt man nah an die linse
+    try {
+      await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+    } catch {}
   } catch {
     toast('Kein Kamerazugriff');
     return;
@@ -932,8 +967,18 @@ async function openScanner(){
     // iOS: ZXing nachladen (einmalig)
     try {
       if (!zxingReader){
-        const { BrowserMultiFormatReader } = await import('https://esm.sh/@zxing/browser@0.1.5');
-        zxingReader = new BrowserMultiFormatReader();
+        const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
+          import('https://esm.sh/@zxing/browser@0.1.5'),
+          import('https://esm.sh/@zxing/library@0.21.3')
+        ]);
+        // nur die relevanten formate suchen -> deutlich schnellere erkennung
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.CODE_128
+        ]);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        zxingReader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 150 });
       }
       const controls = await zxingReader.decodeFromVideoElement(video, result => {
         if (result && scanner && !scanner.paused) handleCode(result.getText());
@@ -969,16 +1014,33 @@ async function handleCode(code){
 
   navigator.vibrate?.(15);
   scanner.paused = true;                 // waehrend lookup nichts doppelt erkennen
+  setHint('Erkannt – suche Namen …');
 
   const name = await lookupBarcode(code);
 
   if (name){
     await addItem(name);
-    toast(`✓ ${name}`);
+    flashSuccess(name);                  // sichtbar IM overlay, nicht dahinter
     scanner.paused = false;              // weiterscannen fuer den naechsten artikel
   } else {
     askName(code);                       // unbekannt -> einmal erfragen
   }
+}
+
+/* rueckmeldung direkt in der kameraansicht: rahmen wird gruen, name erscheint */
+function setHint(text){
+  $('#scanHint').textContent = text;
+}
+let flashTimer;
+function flashSuccess(name){
+  $('#scan').classList.add('ok');
+  setHint(`✓ ${name}`);
+  navigator.vibrate?.([15, 60, 25]);
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => {
+    $('#scan').classList.remove('ok');
+    setHint('Barcode in den Rahmen halten');
+  }, 1500);
 }
 
 async function lookupBarcode(code){
