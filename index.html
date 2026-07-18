@@ -480,6 +480,19 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 #scanAsk p{margin:0 0 16px;font-size:14.5px;line-height:1.5;color:var(--ink-soft)}
 #scanAsk b{font-variant-numeric:tabular-nums;color:var(--ink)}
 #scanAsk .field{width:100%;margin-bottom:12px}
+#scanAsk #askSuggest{
+  display:flex;flex-wrap:wrap;gap:7px;
+  margin:-4px 0 12px;
+}
+#scanAsk #askSuggest:empty{display:none}
+#scanAsk #askSuggest button{
+  padding:8px 13px;border-radius:100px;
+  font-size:14px;font-weight:600;
+  background:var(--bg);border:1.5px solid var(--line);color:var(--ink);
+  transition:transform .12s;
+}
+#scanAsk #askSuggest button:active{transform:scale(.94)}
+#scanAsk #askSuggest button em{font-style:normal;font-weight:800;opacity:.45}
 #scanAsk #askSave{
   width:100%;padding:14px;border-radius:var(--radius);
   background:var(--ink);color:var(--bg);
@@ -582,6 +595,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
     <h2>Unbekanntes Produkt</h2>
     <p>Der Code <b id="askCode"></b> ist noch nicht bekannt.<br>Wie heißt das Produkt?</p>
     <input class="field" id="askName" placeholder="z.B. Hafermilch" autocomplete="off">
+    <div id="askSuggest"></div>
     <button id="askSave">Speichern &amp; hinzufügen</button>
     <button id="askSkip">Überspringen</button>
   </div>
@@ -590,7 +604,7 @@ header{padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;display:flex;alig
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const VERSION = '2.5';
+const VERSION = '2.6';
 
 const SUPABASE_URL = 'https://fctiuuhvsokrvhbtvlvs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_idrPYAQqEunC4XnQnjD5RQ_Blj_wnBm';
@@ -1048,13 +1062,20 @@ async function lookupBarcode(code){
   const { data } = await db.from('barcodes').select('name').eq('code', code);
   if (data && data[0]?.name) return data[0].name;
 
-  // 2) open food facts
-  try {
-    const r = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name_de,product_name`,
-      { headers: { 'Accept': 'application/json' } }
-    );
-    if (r.ok){
+  // 2) die drei offenen produktdatenbanken, in reihenfolge der trefferchance:
+  //    lebensmittel -> kosmetik/drogerie (dm!) -> alles andere
+  const quellen = [
+    'https://world.openfoodfacts.org',
+    'https://world.openbeautyfacts.org',
+    'https://world.openproductsfacts.org'
+  ];
+  for (const basis of quellen){
+    try {
+      const r = await fetch(
+        `${basis}/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name_de,product_name`,
+        { headers: { 'Accept': 'application/json' } }
+      );
+      if (!r.ok) continue;
       const j = await r.json();
       const p = j.product;
       const name = (p?.product_name_de || p?.product_name || '').trim();
@@ -1063,8 +1084,8 @@ async function lookupBarcode(code){
         db.from('barcodes').upsert({ code, name }).then(() => {});
         return name;
       }
-    }
-  } catch {}
+    } catch {}
+  }
   return null;
 }
 
@@ -1072,9 +1093,40 @@ async function lookupBarcode(code){
 function askName(code){
   $('#askCode').textContent = code;
   $('#askName').value = '';
+  $('#askSuggest').innerHTML = '';
   $('#scanAsk').classList.remove('hide');
   setTimeout(() => $('#askName').focus(), 250);
 }
+
+/* beim tippen: bekannte namen aus allen listen vorschlagen -
+   ein tap uebernimmt und speichert sofort */
+$('#askName').oninput = () => {
+  const q = $('#askName').value.trim().toLowerCase();
+  const box = $('#askSuggest');
+  box.innerHTML = '';
+  if (q.length < 2) return;
+
+  vocab
+    .filter(n => n.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const sa = a.toLowerCase().startsWith(q) ? 0 : 1;
+      const sb = b.toLowerCase().startsWith(q) ? 0 : 1;
+      return sa - sb || a.localeCompare(b, 'de');
+    })
+    .slice(0, 4)
+    .forEach(n => {
+      const b = document.createElement('button');
+      const i = n.toLowerCase().indexOf(q);
+      b.innerHTML = '<em>' + esc(n.slice(0, i)) + '</em>'
+                  + esc(n.slice(i, i + q.length))
+                  + '<em>' + esc(n.slice(i + q.length)) + '</em>';
+      b.onclick = () => {
+        $('#askName').value = n;
+        $('#askSave').click();
+      };
+      box.append(b);
+    });
+};
 
 $('#askSave').onclick = async () => {
   const code = $('#askCode').textContent;
