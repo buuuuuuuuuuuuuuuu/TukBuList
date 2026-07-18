@@ -124,17 +124,23 @@ const paleOf = c => mix(c, '#201F26', 0.78);
 
 let token = null, lists = [], items = [], activeId = null, busyRetry = false;
 
-/* ---------- auth: zugangsdaten kommen aus dem bookmark-hash ---------- */
+/* ---------- auth: zugangsdaten aus dem lesezeichen ----------
+   bevorzugt der hash (#u=…&p=…) - der verlaesst den browser nie.
+   manche watch-browser verschlucken den hash aber beim speichern,
+   darum als rueckfallebene auch der query-parameter (?u=…&p=…).
+   der query WIRD an den server gesendet -> nur mit watch-only-konto nutzen. */
 function creds(){
-  const h = new URLSearchParams(location.hash.slice(1));
-  return { email: h.get('u'), pw: h.get('p') };
+  const fromHash  = new URLSearchParams(location.hash.slice(1));
+  const fromQuery = new URLSearchParams(location.search);
+  const pick = k => fromHash.get(k) || fromQuery.get(k);
+  return { email: pick('u'), pw: pick('p') };
 }
 
 async function login(){
   const { email, pw } = creds();
   if (!email || !pw){
     showMsg('Zugangsdaten fehlen',
-      'Lesezeichen so anlegen:\n' + location.origin + location.pathname + '#u=DEINE-MAIL&p=PASSWORT');
+      'Lesezeichen so anlegen:\n' + location.origin + location.pathname + '?u=DEINE-MAIL&p=PASSWORT');
     return false;
   }
   const r = await fetch(BASE + '/auth/v1/token?grant_type=password', {

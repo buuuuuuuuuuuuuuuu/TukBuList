@@ -70,12 +70,15 @@ Items sehen und abhaken. Hinzufuegen versteckt hinter kleinem "+".
 Kein Scanner, kein Realtime (Daten laden bei Oeffnen/Aktion/Reload-Knopf),
 kein Service Worker. Nutzt die Supabase-REST-API direkt (ohne supabase-js).
 
-Lesezeichen-URL mit Zugangsdaten im Hash:
+Lesezeichen-URL mit Zugangsdaten. Zwei Varianten, die Seite akzeptiert beide:
 
-    https://DEINE-SEITE/watch.html#u=EMAIL&p=PASSWORT
+    https://DEINE-SEITE/watch.html#u=EMAIL&p=PASSWORT   (Hash, sicherer)
+    https://DEINE-SEITE/watch.html?u=EMAIL&p=PASSWORT   (Query, kompatibler)
 
-Der Hash verlaesst den Browser nicht (wird nie an den Server gesendet),
-steht aber lesbar im Lesezeichen. Empfehlung: eigenes drittes Supabase-Konto
+Der Hash verlaesst den Browser nie, manche Watch-Browser verschlucken ihn
+aber beim Speichern des Lesezeichens - dann die ?-Variante nehmen. Der Query
+WIRD an den Server gesendet (kann in Logs auftauchen), steht wie der Hash
+lesbar im Lesezeichen. Empfehlung: eigenes drittes Supabase-Konto
 nur fuer die Watch anlegen. Enthaelt das Passwort & # oder %, diese Zeichen
 URL-codieren (%26, %23, %25).
 
